@@ -11,6 +11,7 @@ import 'package:flutter_hbb/common/widgets/custom_password.dart';
 import 'package:flutter_hbb/consts.dart';
 import 'package:flutter_hbb/desktop/pages/connection_page.dart';
 import 'package:flutter_hbb/desktop/pages/ci_client_home.dart';
+import 'package:flutter_hbb/desktop/pages/ci_tech_home.dart';
 import 'package:flutter_hbb/desktop/pages/desktop_setting_page.dart';
 import 'package:flutter_hbb/desktop/pages/desktop_tab_page.dart';
 import 'package:flutter_hbb/desktop/widgets/update_progress.dart';
@@ -60,6 +61,7 @@ class _DesktopHomePageState extends State<DesktopHomePage>
   Widget build(BuildContext context) {
     super.build(context);
     if (isCiClient) return _buildBlock(child: const CiClientHome());
+    if (kCiRole == 'tech') return _buildBlock(child: const CiTechHome());
     final isIncomingOnly = bind.isIncomingOnly();
     return _buildBlock(
         child: Row(
