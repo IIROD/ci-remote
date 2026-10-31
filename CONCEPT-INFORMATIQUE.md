@@ -16,6 +16,20 @@ distance de ses clients. Les modifications prévues :
 - nom et logo propres (« RustDesk » est une marque de ses auteurs et n'est pas utilisé pour
   l'app distribuée).
 
+## App client et app technicien
+
+Une seule base, deux versions fixées à la compilation par une constante Dart :
+`CI_ROLE=client` (par défaut) ou `--dart-define=CI_ROLE=tech`.
+
+- **App client** (`flutter/lib/desktop/pages/ci_client_home.dart`) : une seule page aux couleurs
+  du magasin — client, PC, propriétaire modifiable, « Demande d'aide », état du service. Mode
+  « réception seule » (`conn-type: incoming` dans `res/ci-remote/client.json`) : l'app client ne peut
+  pas prendre la main sur un autre PC.
+- **Technicien vérifié** (`ci_peer_check.dart`) : quand quelqu'un demande à se connecter, l'app client
+  affiche s'il s'agit d'un poste technicien reconnu par le serveur, sinon un avertissement.
+- Données : API d'assistance (`/api/v1/device/*`), le PC s'identifie par son ID, son identifiant
+  machine et son code de téléchargement.
+
 ## Compilation
 
 `.github/workflows/concept-windows.yml` compile l'exe portable Windows x64 à chaque pull request

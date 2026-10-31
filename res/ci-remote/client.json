@@ -1,4 +1,5 @@
 {
+  "conn-type": "incoming",
   "override-settings": {
     "custom-rendezvous-server": "assistance.i02.be",
     "key": "pF46FqLR9ir9e0GErJi+LJuecdq7Q50DzmCIikL2VcA=",
