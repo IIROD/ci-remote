@@ -1,0 +1,16 @@
+{
+  "override-settings": {
+    "custom-rendezvous-server": "assistance.i02.be",
+    "key": "pF46FqLR9ir9e0GErJi+LJuecdq7Q50DzmCIikL2VcA=",
+    "api-server": "https://assistance.i02.be",
+    "relay-server": "",
+    "approve-mode": "click",
+    "enable-lan-discovery": "N",
+    "direct-server": "N",
+    "hide-network-settings": "Y",
+    "hide-server-settings": "Y",
+    "hide-security-settings": "Y",
+    "hide-proxy-settings": "Y",
+    "hide-websocket-settings": "Y"
+  }
+}

@@ -1100,7 +1100,8 @@ class _CmControlPanel extends StatelessWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            if (showAccept)
+            // Concept Informatique : quand l'élévation est possible, seul « Accepter et élever » est proposé.
+            if (showAccept && !showElevation)
               Expanded(
                 child: Column(
                   children: [
