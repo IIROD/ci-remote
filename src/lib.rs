@@ -69,6 +69,8 @@ mod ui_session_interface;
 
 mod hbbs_http;
 
+mod ci_remote;
+
 #[cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))]
 pub mod clipboard_file;
 

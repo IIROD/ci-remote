@@ -146,13 +146,44 @@ jobs:
           python3 ./generate.py -f ../../rustdesk/ -o . -e ../../rustdesk/rustdesk.exe
           popd
           mkdir -p ./output
-          mv ./target/release/rustdesk-portable-packer.exe ./output/ci-remote-${{ env.VERSION }}-${{ github.sha }}-x86_64.exe
-          sha256sum ./output/*.exe
+          mv ./target/release/rustdesk-portable-packer.exe ./output/ci-remote-x86_64.exe
+          (cd ./output && sha256sum ci-remote-x86_64.exe | tee SHA256SUMS)
 
       - name: Upload portable exe (unsigned)
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ci-remote-windows-x86_64-unsigned
-          path: ./output/*.exe
+          path: |
+            ./output/ci-remote-x86_64.exe
+            ./output/SHA256SUMS
           if-no-files-found: error
           retention-days: 14
+
+  # Version publiée (main uniquement) : le serveur d'assistance la télécharge à la version et à
+  # l'empreinte épinglées dans son dépôt, puis la sert aux clients.
+  release:
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    steps:
+      - name: Download build
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: ci-remote-windows-x86_64-unsigned
+          path: ./output
+
+      - name: Publish release
+        uses: softprops/action-gh-release@de2c0eb89ae2a093876385947365aca7b0e5f844 # v1
+        with:
+          tag_name: build-${{ github.run_number }}
+          target_commitish: ${{ github.sha }}
+          name: ci-remote ${{ env.VERSION }} — build ${{ github.run_number }} (non signé)
+          prerelease: true
+          body: |
+            Compilation automatique de ${{ github.sha }} (RustDesk ${{ env.VERSION }} modifié, AGPL-3.0).
+            Non signée. SHA-256 dans SHA256SUMS.
+          files: |
+            ./output/ci-remote-x86_64.exe
+            ./output/SHA256SUMS
