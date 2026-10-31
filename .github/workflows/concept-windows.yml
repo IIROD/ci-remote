@@ -147,7 +147,36 @@ jobs:
           popd
           mkdir -p ./output
           mv ./target/release/rustdesk-portable-packer.exe ./output/ci-remote-x86_64.exe
-          (cd ./output && sha256sum ci-remote-x86_64.exe | tee SHA256SUMS)
+
+      # App technicien : même base, sans le mode « réception seule » de l'app client, et page
+      # d'accueil technicien (constante Dart CI_ROLE=tech). La config intégrée change : Rust recompilé.
+      - name: Technician config (no incoming-only mode)
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json
+          p = "res/ci-remote/client.json"
+          cfg = json.load(open(p, encoding="utf-8"))
+          cfg.pop("conn-type", None)
+          json.dump(cfg, open(p, "w", encoding="utf-8"), indent=2, ensure_ascii=False)
+          PY
+
+      - name: Build technician app
+        env:
+          CI_FLUTTER_BUILD_ARGS: " --dart-define=CI_ROLE=tech"
+        run: |
+          python3 .\build.py --portable --flutter --skip-portable-pack --hwcodec --vram
+          mv ./flutter/build/windows/x64/runner/Release ./rustdesk-tech
+
+      - name: Pack technician app
+        shell: bash
+        run: |
+          pushd ./libs/portable
+          python3 ./generate.py -f ../../rustdesk-tech/ -o . -e ../../rustdesk-tech/rustdesk.exe
+          popd
+          mv ./target/release/rustdesk-portable-packer.exe ./output/ci-tech-x86_64.exe
+          git checkout res/ci-remote/client.json
+          (cd ./output && sha256sum ci-remote-x86_64.exe ci-tech-x86_64.exe | tee SHA256SUMS)
 
       - name: Upload portable exe (unsigned)
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -155,6 +184,7 @@ jobs:
           name: ci-remote-windows-x86_64-unsigned
           path: |
             ./output/ci-remote-x86_64.exe
+            ./output/ci-tech-x86_64.exe
             ./output/SHA256SUMS
           if-no-files-found: error
           retention-days: 14
@@ -186,4 +216,5 @@ jobs:
             Non signée. SHA-256 dans SHA256SUMS.
           files: |
             ./output/ci-remote-x86_64.exe
+            ./output/ci-tech-x86_64.exe
             ./output/SHA256SUMS
