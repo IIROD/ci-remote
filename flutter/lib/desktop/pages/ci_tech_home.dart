@@ -91,6 +91,7 @@ class _CiTechLoginState extends State<_CiTechLogin> {
   final _code = TextEditingController();
   String? _challenge;
   String _maskedEmail = '';
+  bool _totp = false;
   String? _error;
   bool _busy = false;
   bool _showPassword = false;
@@ -140,6 +141,7 @@ class _CiTechLoginState extends State<_CiTechLogin> {
         setState(() {
           _challenge = data['challenge'] as String;
           _maskedEmail = (data['email'] as String?) ?? '';
+          _totp = data['method'] == 'totp';
         });
       } else {
         if (data['restart'] == true) _challenge = null;
@@ -202,7 +204,9 @@ class _CiTechLoginState extends State<_CiTechLogin> {
                             const SizedBox(height: 6),
                             Text(
                                 step2
-                                    ? 'Saisissez le code à 6 chiffres envoyé à\n$_maskedEmail'
+                                    ? (_totp
+                                        ? 'Saisissez le code à 6 chiffres affiché\npar Google Authenticator'
+                                        : 'Saisissez le code à 6 chiffres envoyé à\n$_maskedEmail')
                                     : 'Connectez-vous avec votre compte administrateur du site.',
                                 textAlign: TextAlign.center,
                                 style: const TextStyle(
