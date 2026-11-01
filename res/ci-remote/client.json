@@ -1,5 +1,10 @@
 {
   "conn-type": "incoming",
+  "default-settings": {
+    "view-style": "adaptive",
+    "image-quality": "balanced",
+    "codec-preference": "auto"
+  },
   "override-settings": {
     "custom-rendezvous-server": "assistance.i02.be",
     "key": "pF46FqLR9ir9e0GErJi+LJuecdq7Q50DzmCIikL2VcA=",

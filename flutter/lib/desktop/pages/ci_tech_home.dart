@@ -354,6 +354,7 @@ class _CiTechConsole extends StatefulWidget {
 class _CiTechConsoleState extends State<_CiTechConsole> {
   Timer? _timer;
   List<Map<String, dynamic>> _devices = [];
+  List<Map<String, dynamic>> _handoffs = [];
   double _serverTime = 0;
   String? _error;
   bool _loaded = false;
@@ -405,6 +406,8 @@ class _CiTechConsoleState extends State<_CiTechConsole> {
       if (!mounted) return;
       setState(() {
         _devices = (data['devices'] as List).cast<Map<String, dynamic>>();
+        _handoffs =
+            ((data['handoffs'] as List?) ?? []).cast<Map<String, dynamic>>();
         _serverTime = (data['server_time'] as num?)?.toDouble() ?? 0;
         _error = null;
         _loaded = true;
@@ -493,6 +496,7 @@ class _CiTechConsoleState extends State<_CiTechConsole> {
       return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         _header(online, helps, box.maxWidth),
         _toolbar(wide),
+        for (final h in _handoffs) _handoffBanner(h),
         if (_error != null)
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -510,6 +514,42 @@ class _CiTechConsoleState extends State<_CiTechConsole> {
         ),
       ]);
     });
+  }
+
+  /// PC passé par un collègue (10 min pour prendre la main ; le client n'a pas à accepter).
+  Widget _handoffBanner(Map<String, dynamic> h) {
+    final client = _clientOf(h);
+    final pc = (h['hostname'] as String?) ?? (h['device_id'] as String? ?? '');
+    final note = (h['note'] as String?) ?? '';
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+      padding: const EdgeInsets.fromLTRB(14, 10, 10, 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF5F3FF),
+        border: Border.all(color: const Color(0xFFC4B5FD)),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(children: [
+        const Icon(Icons.swap_horiz, color: Color(0xFF7C3AED)),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text('${h['from_name'] ?? 'Un collègue'} te passe le PC $pc'
+                '${client.isNotEmpty ? ' — $client' : ''}',
+                style: const TextStyle(
+                    color: kCiInk, fontWeight: FontWeight.w600, fontSize: 13.5)),
+            if (note.isNotEmpty)
+              Text(note, style: const TextStyle(color: kCiMuted, fontSize: 12.5)),
+          ]),
+        ),
+        const SizedBox(width: 10),
+        ElevatedButton.icon(
+          onPressed: () => _connect((h['device_id'] as String?) ?? ''),
+          icon: const Icon(Icons.login, size: 16),
+          label: const Text('Prendre la main'),
+        ),
+      ]),
+    );
   }
 
   Widget _header(int online, int helps, double width) {

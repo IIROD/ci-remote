@@ -3959,6 +3959,7 @@ impl Connection {
                     Some(misc::Union::RestartRemoteDevice(_)) => {
                         #[cfg(not(any(target_os = "android", target_os = "ios")))]
                         if self.restart {
+                            crate::ci_remote::before_remote_restart(&self.lr.my_id);
                             // force_reboot, not work on linux vm and macos 14
                             #[cfg(any(target_os = "linux", target_os = "windows"))]
                             match system_shutdown::force_reboot() {

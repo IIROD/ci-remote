@@ -6,6 +6,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_hbb/desktop/pages/ci_client_home.dart';
 import 'package:flutter_hbb/desktop/pages/ci_peer_check.dart';
+import 'package:flutter_hbb/desktop/pages/ci_reconnect.dart';
 import 'package:flutter_hbb/desktop/pages/ci_session_counter.dart';
 import 'package:flutter_hbb/common/widgets/audio_input.dart';
 import 'package:flutter_hbb/consts.dart';
@@ -372,6 +373,8 @@ Widget buildConnectionCard(Client client) {
       children: [
         _CmHeader(client: client),
         if (isCiClient && !client.disconnected) CiPeerCheck(peerId: client.peerId),
+        if (isCiClient && !client.authorized && !client.disconnected)
+          CiReconnectAccept(client: client),
         if (isCiClient && client.authorized && !client.disconnected)
           const CiClientCounter(),
         client.type_() == ClientType.file ||
