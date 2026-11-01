@@ -62,11 +62,14 @@ class _CiTechHomeState extends State<CiTechHome> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      color: kCiBg,
-      child: _token.isEmpty
-          ? _CiTechLogin(onSignedIn: _signedIn, notice: _loginNotice)
-          : _CiTechConsole(token: _token, name: _name, onSignOut: _signOut),
+    return Theme(
+      data: ciTheme(),
+      child: Container(
+        color: kCiBg,
+        child: _token.isEmpty
+            ? _CiTechLogin(onSignedIn: _signedIn, notice: _loginNotice)
+            : _CiTechConsole(token: _token, name: _name, onSignOut: _signOut),
+      ),
     );
   }
 }
@@ -90,6 +93,7 @@ class _CiTechLoginState extends State<_CiTechLogin> {
   String _maskedEmail = '';
   String? _error;
   bool _busy = false;
+  bool _showPassword = false;
 
   @override
   void dispose() {
@@ -113,8 +117,17 @@ class _CiTechLoginState extends State<_CiTechLogin> {
               headers: {'Content-Type': 'application/json'},
               body: jsonEncode(body))
           .timeout(const Duration(seconds: 20));
-      final data =
-          jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
+      final Map<String, dynamic> data;
+      try {
+        data = jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
+      } on FormatException {
+        setState(() {
+          _error =
+              'Réponse inattendue du site (code ${res.statusCode}). Réessayez plus tard.';
+          _busy = false;
+        });
+        return;
+      }
       if (res.statusCode == 200 && data['token'] is String) {
         widget.onSignedIn(
             data['token'] as String,
@@ -142,110 +155,181 @@ class _CiTechLoginState extends State<_CiTechLogin> {
   @override
   Widget build(BuildContext context) {
     final step2 = _challenge != null;
-    return Center(
-      child: SingleChildScrollView(
-        child: Container(
-          width: 380,
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            border: Border.all(color: kCiLine),
-            borderRadius: BorderRadius.circular(14),
-          ),
-          child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Image.asset('assets/ci_logo.png', height: 64),
-                const SizedBox(height: 10),
-                const Text('Console technicien',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                        color: kCiInk,
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700)),
-                const SizedBox(height: 4),
-                Text(
-                    step2
-                        ? 'Code envoyé à $_maskedEmail'
-                        : 'Connectez-vous avec votre compte admin du site.',
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(color: kCiMuted, fontSize: 13)),
-                const SizedBox(height: 18),
-                if (widget.notice != null && !step2) ...[
-                  Text(widget.notice!,
-                      style: const TextStyle(
-                          color: Color(0xFFB45309), fontSize: 13)),
-                  const SizedBox(height: 10),
-                ],
-                if (!step2) ...[
-                  TextField(
-                    controller: _email,
-                    autofocus: true,
-                    keyboardType: TextInputType.emailAddress,
-                    decoration: const InputDecoration(
-                        labelText: 'Email', border: OutlineInputBorder()),
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: _password,
-                    obscureText: true,
-                    onSubmitted: (_) => _busy ? null : _submit(),
-                    decoration: const InputDecoration(
-                        labelText: 'Mot de passe',
-                        border: OutlineInputBorder()),
-                  ),
-                ] else
-                  TextField(
-                    controller: _code,
-                    autofocus: true,
-                    maxLength: 6,
-                    keyboardType: TextInputType.number,
-                    onSubmitted: (_) => _busy ? null : _submit(),
-                    style: const TextStyle(fontSize: 22, letterSpacing: 6),
-                    textAlign: TextAlign.center,
-                    decoration: const InputDecoration(
-                        labelText: 'Code reçu par email',
-                        counterText: '',
-                        border: OutlineInputBorder()),
-                  ),
-                if (_error != null) ...[
-                  const SizedBox(height: 10),
-                  Text(_error!,
-                      style: const TextStyle(
-                          color: Color(0xFFB91C1C), fontSize: 13)),
-                ],
-                const SizedBox(height: 16),
-                SizedBox(
-                  height: 44,
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                        backgroundColor: kCiBrand,
-                        foregroundColor: Colors.white),
-                    onPressed: _busy ? null : _submit,
-                    child: _busy
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(
-                                strokeWidth: 2, color: Colors.white))
-                        : Text(step2 ? 'Valider le code' : 'Continuer'),
-                  ),
-                ),
-                if (step2)
-                  TextButton(
-                    onPressed: _busy
-                        ? null
-                        : () => setState(() {
-                              _challenge = null;
-                              _code.clear();
-                              _error = null;
-                            }),
-                    child: const Text('Recommencer'),
-                  ),
-              ]),
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Color(0xFFE6F6F4), kCiBg],
         ),
       ),
+      child: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Container(
+              width: 420,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(18),
+                boxShadow: const [
+                  BoxShadow(
+                      color: Color(0x1A0F172A),
+                      blurRadius: 32,
+                      offset: Offset(0, 12)),
+                ],
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Container(height: 5, color: kCiBrand),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(36, 30, 36, 30),
+                      child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Image.asset('assets/ci_logo.png',
+                                height: 70,
+                                filterQuality: FilterQuality.medium),
+                            const SizedBox(height: 22),
+                            Text(step2 ? 'Vérification' : 'Console technicien',
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(
+                                    color: kCiInk,
+                                    fontSize: 22,
+                                    fontWeight: FontWeight.w700)),
+                            const SizedBox(height: 6),
+                            Text(
+                                step2
+                                    ? 'Saisissez le code à 6 chiffres envoyé à\n$_maskedEmail'
+                                    : 'Connectez-vous avec votre compte administrateur du site.',
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(
+                                    color: kCiMuted,
+                                    fontSize: 14,
+                                    height: 1.4)),
+                            const SizedBox(height: 26),
+                            if (widget.notice != null && !step2) ...[
+                              _message(widget.notice!, warning: true),
+                              const SizedBox(height: 16),
+                            ],
+                            if (!step2) ...[
+                              TextField(
+                                controller: _email,
+                                autofocus: true,
+                                keyboardType: TextInputType.emailAddress,
+                                textInputAction: TextInputAction.next,
+                                decoration: const InputDecoration(
+                                    labelText: 'Adresse email',
+                                    prefixIcon:
+                                        Icon(Icons.mail_outline, size: 20)),
+                              ),
+                              const SizedBox(height: 14),
+                              TextField(
+                                controller: _password,
+                                obscureText: !_showPassword,
+                                onSubmitted: (_) => _busy ? null : _submit(),
+                                decoration: InputDecoration(
+                                  labelText: 'Mot de passe',
+                                  prefixIcon:
+                                      const Icon(Icons.lock_outline, size: 20),
+                                  suffixIcon: IconButton(
+                                    tooltip:
+                                        _showPassword ? 'Masquer' : 'Afficher',
+                                    icon: Icon(
+                                        _showPassword
+                                            ? Icons.visibility_off_outlined
+                                            : Icons.visibility_outlined,
+                                        size: 20),
+                                    onPressed: () => setState(
+                                        () => _showPassword = !_showPassword),
+                                  ),
+                                ),
+                              ),
+                            ] else
+                              TextField(
+                                controller: _code,
+                                autofocus: true,
+                                maxLength: 6,
+                                keyboardType: TextInputType.number,
+                                onSubmitted: (_) => _busy ? null : _submit(),
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(
+                                    fontSize: 28,
+                                    letterSpacing: 10,
+                                    fontWeight: FontWeight.w600),
+                                decoration: const InputDecoration(
+                                    hintText: '••••••', counterText: ''),
+                              ),
+                            if (_error != null) ...[
+                              const SizedBox(height: 16),
+                              _message(_error!),
+                            ],
+                            const SizedBox(height: 22),
+                            SizedBox(
+                              height: 48,
+                              child: ElevatedButton(
+                                onPressed: _busy ? null : _submit,
+                                child: _busy
+                                    ? const SizedBox(
+                                        width: 20,
+                                        height: 20,
+                                        child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            color: Colors.white))
+                                    : Text(
+                                        step2
+                                            ? 'Valider le code'
+                                            : 'Se connecter',
+                                        style: const TextStyle(
+                                            fontSize: 15,
+                                            fontWeight: FontWeight.w600)),
+                              ),
+                            ),
+                            if (step2) ...[
+                              const SizedBox(height: 8),
+                              TextButton(
+                                onPressed: _busy
+                                    ? null
+                                    : () => setState(() {
+                                          _challenge = null;
+                                          _code.clear();
+                                          _error = null;
+                                        }),
+                                child: const Text('Changer de compte'),
+                              ),
+                            ],
+                          ]),
+                    ),
+                  ]),
+            ),
+            const SizedBox(height: 18),
+            const Text('Accès réservé aux techniciens de Concept Informatique',
+                style: TextStyle(color: kCiMuted, fontSize: 12)),
+          ]),
+        ),
+      ),
+    );
+  }
+
+  Widget _message(String text, {bool warning = false}) {
+    final color = warning ? const Color(0xFFB45309) : const Color(0xFFB91C1C);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: warning ? const Color(0xFFFFFBEB) : const Color(0xFFFEF2F2),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: color.withOpacity(0.3)),
+      ),
+      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Icon(warning ? Icons.info_outline : Icons.error_outline,
+            color: color, size: 18),
+        const SizedBox(width: 8),
+        Expanded(
+            child: Text(text,
+                style: TextStyle(color: color, fontSize: 13, height: 1.35))),
+      ]),
     );
   }
 }
