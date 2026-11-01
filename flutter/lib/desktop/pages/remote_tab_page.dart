@@ -9,6 +9,7 @@ import 'package:flutter_hbb/common/shared_state.dart';
 import 'package:flutter_hbb/consts.dart';
 import 'package:flutter_hbb/models/input_model.dart';
 import 'package:flutter_hbb/models/state_model.dart';
+import 'package:flutter_hbb/desktop/pages/ci_session_counter.dart';
 import 'package:flutter_hbb/desktop/pages/remote_page.dart';
 import 'package:flutter_hbb/desktop/widgets/remote_toolbar.dart';
 import 'package:flutter_hbb/desktop/widgets/tabbar_widget.dart';
@@ -138,6 +139,7 @@ class _ConnectionTabPageState extends State<ConnectionTabPage> {
         tail: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
+            if (isCiTech) _CiTabCounter(tabController: tabController),
             _RelativeMouseModeHint(tabController: tabController),
             const AddButton(),
           ],
@@ -623,4 +625,20 @@ class _RelativeMouseModeHint extends StatelessWidget {
       );
     });
   }
+}
+
+/// Concept Informatique : compteur de temps de l'onglet affiché (app technicien).
+class _CiTabCounter extends StatelessWidget {
+  final DesktopTabController tabController;
+  const _CiTabCounter({Key? key, required this.tabController})
+      : super(key: key);
+
+  @override
+  Widget build(BuildContext context) => Obx(() {
+        final tabs = tabController.state.value.tabs;
+        final selected = tabController.state.value.selected;
+        if (tabs.isEmpty || selected >= tabs.length) return const Offstage();
+        final peerId = tabs[selected].key;
+        return CiTechCounter(key: ValueKey(peerId), peerId: peerId);
+      });
 }

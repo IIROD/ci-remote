@@ -118,6 +118,7 @@ class _CiClientHomeState extends State<CiClientHome> {
       0; // 1 : connecté au service, 0 : connexion en cours, -1 : hors ligne
   _Link _link = _Link.loading;
   Map<String, dynamic> _me = {};
+  Map<String, dynamic>? _usage;
   String _myId = '';
   bool _editingOwner = false;
   bool _savingOwner = false;
@@ -171,10 +172,20 @@ class _CiClientHomeState extends State<CiClientHome> {
     } catch (_) {
       link = _Link.unreachable;
     }
+    Map<String, dynamic>? usage;
+    if (link == _Link.linked) {
+      try {
+        final res = await CiDeviceApi.get('/api/v1/device/usage');
+        if (res.statusCode == 200) {
+          usage = jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
+        }
+      } catch (_) {}
+    }
     if (!mounted) return;
     setState(() {
       _link = link;
       if (me != null) _me = me;
+      if (usage != null) _usage = usage;
     });
   }
 
@@ -318,6 +329,10 @@ class _CiClientHomeState extends State<CiClientHome> {
                   _pcCard(),
                   const SizedBox(height: 16),
                   _helpButton(),
+                  if (_usage != null) ...[
+                    const SizedBox(height: 16),
+                    _usageCard(_usage!),
+                  ],
                   if (_notice != null) ...[
                     const SizedBox(height: 10),
                     Text(_notice!,
@@ -442,6 +457,108 @@ class _CiClientHomeState extends State<CiClientHome> {
       if ((a['phone'] as String? ?? '').isNotEmpty)
         _row('Téléphone', a['phone'] as String),
     ]);
+  }
+
+  /// « Mon suivi » : crédit, temps du mois et dernières interventions (tous les PC du compte).
+  Widget _usageCard(Map<String, dynamic> u) {
+    final credit = (u['credit_seconds'] as num?)?.toInt();
+    final free = (u['free_seconds'] as num?)?.toInt() ?? 0;
+    final month = (u['month'] as Map<String, dynamic>?) ?? {};
+    final monthCount = (month['sessions'] as num?)?.toInt() ?? 0;
+    final monthBilled = (month['billed_seconds'] as num?)?.toInt() ?? 0;
+    final sessions = ((u['sessions'] as List?) ?? [])
+        .whereType<Map<String, dynamic>>()
+        .take(5)
+        .toList();
+    final over = credit != null && credit < 0;
+    return _card(Icons.insights_outlined, 'Mon suivi', [
+      if (credit != null)
+        Container(
+          width: double.infinity,
+          margin: const EdgeInsets.only(bottom: 6),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: over ? const Color(0xFFFFFBEB) : const Color(0xFFE6F6F4),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(over ? 'Crédit dépassé de' : 'Crédit restant',
+                style: const TextStyle(color: kCiMuted, fontSize: 12)),
+            Text(_duration(credit.abs()),
+                style: TextStyle(
+                    color: over ? const Color(0xFFB45309) : kCiBrandDark,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w800)),
+          ]),
+        ),
+      _row('Ce mois-ci',
+          '$monthCount intervention${monthCount > 1 ? 's' : ''} · ${_duration(monthBilled)} décompté${monthBilled > 0 ? 's' : ''}'),
+      if (sessions.isNotEmpty) ...[
+        const SizedBox(height: 6),
+        const Text('Dernières interventions',
+            style: TextStyle(
+                color: kCiMuted, fontSize: 12, fontWeight: FontWeight.w600)),
+        const SizedBox(height: 4),
+        ...sessions.map(_sessionRow),
+      ],
+      if (free > 0)
+        Padding(
+          padding: const EdgeInsets.only(top: 8, bottom: 4),
+          child: Text(
+              'Les ${free ~/ 60} premières minutes de chaque intervention sont offertes.',
+              style: const TextStyle(color: kCiMuted, fontSize: 11.5)),
+        ),
+    ]);
+  }
+
+  Widget _sessionRow(Map<String, dynamic> s) {
+    final at = DateTime.fromMillisecondsSinceEpoch(
+        (((s['started_at'] as num?) ?? 0) * 1000).toInt());
+    String two(int v) => v.toString().padLeft(2, '0');
+    final when =
+        '${two(at.day)}/${two(at.month)} ${two(at.hour)}:${two(at.minute)}';
+    final seconds = (s['seconds'] as num?)?.toInt() ?? 0;
+    final billed = (s['billed_seconds'] as num?)?.toInt() ?? 0;
+    final open = s['open'] == true;
+    final (status, color) = open
+        ? ('en cours', kCiBrand)
+        : billed == 0
+            ? ('offert', const Color(0xFF7C3AED))
+            : s['settled'] == true
+                ? ('${_duration(billed)} décomptées', kCiMuted)
+                : ('${_duration(billed)} à valider', const Color(0xFFB45309));
+    final who = [s['hostname'], s['tech']]
+        .whereType<String>()
+        .where((v) => v.isNotEmpty)
+        .join(' · ');
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      decoration: const BoxDecoration(
+          border: Border(top: BorderSide(color: kCiLine))),
+      child: Row(children: [
+        Expanded(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text('$when · ${_duration(seconds)}',
+                style: const TextStyle(color: kCiInk, fontSize: 13)),
+            if (who.isNotEmpty)
+              Text(who,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(color: kCiMuted, fontSize: 11.5)),
+          ]),
+        ),
+        const SizedBox(width: 8),
+        Text(status,
+            style: TextStyle(
+                color: color, fontSize: 12, fontWeight: FontWeight.w600)),
+      ]),
+    );
+  }
+
+  static String _duration(int seconds) {
+    final h = seconds ~/ 3600, m = (seconds % 3600) ~/ 60;
+    if (h > 0) return '$h h ${m.toString().padLeft(2, '0')}';
+    if (m > 0) return '$m min';
+    return '$seconds s';
   }
 
   Widget _pcCard() {
