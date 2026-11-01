@@ -3849,9 +3849,12 @@ class _CiFilesButton extends StatelessWidget {
         tooltip: 'Transférer des fichiers',
         color: _ToolbarTheme.blueColor,
         hoverColor: _ToolbarTheme.hoverBlueColor,
-        onPressed: () => connect(context, id,
-            isFileTransfer: true,
-            connToken: bind.sessionGetConnToken(sessionId: ffi.sessionId)),
+        onPressed: () {
+          ciLog(ffi, 'files');
+          connect(context, id,
+              isFileTransfer: true,
+              connToken: bind.sessionGetConnToken(sessionId: ffi.sessionId));
+        },
       );
 }
 
@@ -3894,7 +3897,12 @@ class _CiMenu extends StatelessWidget {
           for (final t in privacy) {
             items.add(CkbMenuButton(
                 value: t.value,
-                onChanged: t.onChanged,
+                onChanged: t.onChanged == null
+                    ? null
+                    : (v) {
+                        ciLog(ffi, 'privacy', v == true ? 'Écran noir activé' : 'Écran noir désactivé');
+                        t.onChanged!(v);
+                      },
                 ffi: ffi,
                 child: privacy.length == 1
                     ? const Text('Écran noir chez le client')
@@ -3903,10 +3911,17 @@ class _CiMenu extends StatelessWidget {
           if (items.isNotEmpty) items.add(Divider());
           items.add(MenuButton(
               ffi: ffi,
-              onPressed: () => connect(context, id,
-                  isFileTransfer: true,
-                  connToken: bind.sessionGetConnToken(sessionId: ffi.sessionId)),
+              onPressed: () {
+                ciLog(ffi, 'files');
+                connect(context, id,
+                    isFileTransfer: true,
+                    connToken: bind.sessionGetConnToken(sessionId: ffi.sessionId));
+              },
               child: const Text('Transférer des fichiers')));
+          items.add(MenuButton(
+              ffi: ffi,
+              onPressed: () => ciHandoffDialog(ffi),
+              child: const Text('Passer à un collègue…')));
           if (keyboard && windows) {
             items.add(_SubmenuButton(
                 ffi: ffi,
@@ -3921,14 +3936,19 @@ class _CiMenu extends StatelessWidget {
           if (keyboard) {
             power.add(MenuButton(
                 ffi: ffi,
-                onPressed: () => bind.sessionLockScreen(sessionId: ffi.sessionId),
+                onPressed: () {
+                  ciLog(ffi, 'lock');
+                  bind.sessionLockScreen(sessionId: ffi.sessionId);
+                },
                 child: const Text('Verrouiller la session')));
           }
           if (ffi.ffiModel.permissions['restart'] != false) {
             power.add(MenuButton(
                 ffi: ffi,
-                onPressed: () => showRestartRemoteDevice(
-                    pi, id, ffi.sessionId, ffi.dialogManager),
+                onPressed: () {
+                  ciLog(ffi, 'restart', 'Redémarrage demandé');
+                  showRestartRemoteDevice(pi, id, ffi.sessionId, ffi.dialogManager);
+                },
                 child: const Text('Redémarrer (reconnexion automatique)')));
           }
           if (keyboard && windows) power.addAll(kCiPower.map((c) => _ciItem(c)));

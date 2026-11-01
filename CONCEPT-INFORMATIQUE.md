@@ -44,6 +44,10 @@ Une seule base, deux versions fixées à la compilation par une constante Dart :
 - **Redémarrage avec reconnexion** : avant de redémarrer, l'app client se programme pour se relancer à
   l'ouverture de session (RunOnce, `src/ci_remote.rs`) et accepte une fois le même technicien vérifié
   pendant 10 min (`ci_reconnect.dart`). Éteindre ne reconnecte pas.
+- **Passer à un collègue** (menu Concept) : le collègue voit le PC en tête de sa console (10 min) et prend
+  la main ; l'app client l'accepte sans clic (`ci_reconnect.dart`, confirmé par le serveur) ; même session.
+- **Journal d'actions** : chaque action du menu Concept est notée (`ciLog`, `POST /api/v1/tech/log`),
+  visible dans l'admin du site (Support → Historique → Journal).
 - Données : API d'assistance (`/api/v1/device/*`), le PC s'identifie par son ID, son identifiant
   machine et son code de téléchargement.
 

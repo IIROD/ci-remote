@@ -4,6 +4,9 @@
 // option « ci-reconnect ») et se programme pour se relancer à l'ouverture de session. Au retour, la
 // demande de connexion de CE technicien est acceptée une seule fois, s'il est aussi reconnu par le
 // serveur comme poste technicien ; sinon le client accepte à la main, comme d'habitude.
+//
+// Même chose pour un collègue à qui le technicien a passé la session (F-18) : le serveur le confirme
+// (GET /api/v1/device/handoff), 10 min au plus après le passage.
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -33,15 +36,40 @@ class CiReconnectAccept extends StatefulWidget {
 
 class _CiReconnectAcceptState extends State<CiReconnectAccept> {
   bool _pending = false;
+  String _message = 'Reconnexion du technicien après le redémarrage…';
 
   @override
   void initState() {
     super.initState();
+    if (widget.client.authorized) return;
     final peer = ciReconnectPeer();
-    if (peer != null && peer == widget.client.peerId && !widget.client.authorized) {
+    if (peer != null && peer == widget.client.peerId) {
       _pending = true;
       _accept();
+    } else {
+      _handoff();
     }
+  }
+
+  /// Collègue annoncé par le technicien (passage de session) : accepté sans clic.
+  Future<void> _handoff() async {
+    try {
+      final res = await CiDeviceApi.get(
+          '/api/v1/device/handoff?peer=${Uri.encodeQueryComponent(widget.client.peerId)}');
+      if (res.statusCode != 200) return;
+      final data = jsonDecode(utf8.decode(res.bodyBytes)) as Map;
+      if (data['accept'] != true || !mounted) return;
+      setState(() {
+        _pending = true;
+        _message = 'Votre technicien ${data['from'] ?? ''} a passé la main à son collègue.';
+      });
+      await Future.delayed(const Duration(seconds: 2));
+      if (!mounted) return;
+      setState(() => _pending = false);
+      if (!widget.client.authorized && !widget.client.disconnected) {
+        gFFI.serverModel.sendLoginResponse(widget.client, true);
+      }
+    } catch (_) {}
   }
 
   Future<void> _accept() async {
@@ -71,15 +99,15 @@ class _CiReconnectAcceptState extends State<CiReconnectAccept> {
         border: Border.all(color: kCiBrand.withOpacity(0.5)),
         borderRadius: BorderRadius.circular(10),
       ),
-      child: const Row(children: [
-        SizedBox(
+      child: Row(children: [
+        const SizedBox(
             width: 16,
             height: 16,
             child: CircularProgressIndicator(strokeWidth: 2, color: kCiBrand)),
-        SizedBox(width: 8),
+        const SizedBox(width: 8),
         Expanded(
-          child: Text('Reconnexion du technicien après le redémarrage…',
-              style: TextStyle(color: kCiInk, fontSize: 12.5)),
+          child: Text(_message,
+              style: const TextStyle(color: kCiInk, fontSize: 12.5)),
         ),
       ]),
     );
