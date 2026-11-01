@@ -53,6 +53,55 @@ class CiDeviceApi {
           .timeout(const Duration(seconds: 10));
 }
 
+/// Thème clair à nos couleurs, imposé à nos pages (indépendant du thème sombre ou clair de Windows).
+ThemeData ciTheme() {
+  final border = OutlineInputBorder(
+      borderRadius: BorderRadius.circular(10),
+      borderSide: const BorderSide(color: kCiLine));
+  return ThemeData(
+    brightness: Brightness.light,
+    colorScheme: ColorScheme.fromSeed(
+        seedColor: kCiBrand, brightness: Brightness.light, primary: kCiBrand),
+    scaffoldBackgroundColor: kCiBg,
+    textSelectionTheme: const TextSelectionThemeData(cursorColor: kCiBrand),
+    inputDecorationTheme: InputDecorationTheme(
+      filled: true,
+      fillColor: Colors.white,
+      isDense: false,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
+      labelStyle: const TextStyle(color: kCiMuted),
+      floatingLabelStyle: const TextStyle(color: kCiBrandDark),
+      prefixIconColor: kCiMuted,
+      suffixIconColor: kCiMuted,
+      border: border,
+      enabledBorder: border,
+      focusedBorder: border.copyWith(
+          borderSide: const BorderSide(color: kCiBrand, width: 2)),
+    ),
+    elevatedButtonTheme: ElevatedButtonThemeData(
+      style: ElevatedButton.styleFrom(
+        backgroundColor: kCiBrand,
+        foregroundColor: Colors.white,
+        disabledBackgroundColor: kCiLine,
+        elevation: 0,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ),
+    ),
+    outlinedButtonTheme: OutlinedButtonThemeData(
+      style: OutlinedButton.styleFrom(
+        foregroundColor: kCiBrandDark,
+        side: const BorderSide(color: kCiBrand),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ),
+    ),
+    textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(foregroundColor: kCiBrandDark)),
+    dialogTheme: DialogTheme(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
+  );
+}
+
 enum _Link { loading, linked, notLinked, unreachable }
 
 class CiClientHome extends StatefulWidget {
@@ -240,6 +289,10 @@ class _CiClientHomeState extends State<CiClientHome> {
 
   @override
   Widget build(BuildContext context) {
+    return Theme(data: ciTheme(), child: _page());
+  }
+
+  Widget _page() {
     return Container(
       color: kCiBg,
       child: Column(children: [
