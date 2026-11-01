@@ -212,6 +212,7 @@ pub fn core_main() -> Option<CoreMainAction> {
 
         #[cfg(windows)]
         {
+            crate::ci_remote::register_uri_scheme();
             crate::platform::try_remove_temp_update_files();
             hbb_common::config::PeerConfig::preload_peers();
         }
