@@ -47,6 +47,33 @@ fn write_uri_scheme() -> std::io::Result<()> {
     command.set_value("", &format!("\"{}\" \"%1\"", exe.display()))
 }
 
+const OPTION_RECONNECT: &str = "ci-reconnect";
+const RECONNECT_SECONDS: u64 = 600;
+
+/// App client : redémarrage demandé par un technicien déjà accepté. L'app se relance à la prochaine
+/// ouverture de session Windows (RunOnce, utilisateur seulement) et accepte une fois ce même technicien
+/// pendant 10 min (`ci_reconnect.dart`, qui vérifie aussi que c'est un poste technicien reconnu).
+pub fn before_remote_restart(peer_id: &str) {
+    if !hbb_common::config::is_incoming_only() || peer_id.is_empty() {
+        return;
+    }
+    let expires = hbb_common::get_time() as u64 / 1000 + RECONNECT_SECONDS;
+    LocalConfig::set_option(OPTION_RECONNECT.to_owned(), format!("{peer_id}|{expires}"));
+    #[cfg(windows)]
+    if let Err(err) = write_run_once() {
+        hbb_common::log::warn!("Concept Informatique : relance après redémarrage non programmée : {err}");
+    }
+}
+
+#[cfg(windows)]
+fn write_run_once() -> std::io::Result<()> {
+    use winreg::{enums::HKEY_CURRENT_USER, RegKey};
+    let exe = std::env::current_exe()?;
+    let (key, _) = RegKey::predef(HKEY_CURRENT_USER)
+        .create_subkey("Software\\Microsoft\\Windows\\CurrentVersion\\RunOnce")?;
+    key.set_value("CiRemoteReconnect", &format!("\"{}\"", exe.display()))
+}
+
 fn exe_name() -> String {
     // Version portable : le nom du fichier téléchargé est transmis par le lanceur.
     if let Ok(name) = std::env::var(crate::common::PORTABLE_APPNAME_RUNTIME_ENV_KEY) {

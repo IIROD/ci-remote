@@ -7,6 +7,7 @@ import 'package:flutter_hbb/common/widgets/audio_input.dart';
 import 'package:flutter_hbb/common/widgets/dialog.dart';
 import 'package:flutter_hbb/common/widgets/keyboard_shortcuts/display.dart';
 import 'package:flutter_hbb/common/widgets/toolbar.dart';
+import 'package:flutter_hbb/desktop/pages/ci_actions.dart';
 import 'package:flutter_hbb/desktop/pages/ci_session_counter.dart';
 import 'package:flutter_hbb/models/chat_model.dart';
 import 'package:flutter_hbb/models/state_model.dart';
@@ -808,6 +809,10 @@ class _RemoteToolbarState extends State<RemoteToolbar> {
     if (isCiTech) {
       toolbarItems
           .add(CiTechCounter(peerId: widget.id, fullscreenOnly: true));
+      if (widget.ffi.connType == ConnType.defaultConn) {
+        toolbarItems.add(_CiFilesButton(id: widget.id, ffi: widget.ffi));
+        toolbarItems.add(_CiMenu(id: widget.id, ffi: widget.ffi));
+      }
     }
     toolbarItems.add(Obx(() {
       final privacyModeState = PrivacyModeState.find(widget.id);
@@ -3823,4 +3828,121 @@ class _MinimizedMonitorSwitchButton extends StatelessWidget {
       );
     });
   }
+}
+
+// Concept Informatique (app technicien) : bouton « Fichiers » direct et menu « Concept »
+// (mode Tech uniquement, outils Windows, diagnostic, alimentation). Logique : ci_actions.dart.
+Widget _ciIcon(IconData icon) => SizedBox(
+    width: _ToolbarTheme.buttonSize,
+    height: _ToolbarTheme.buttonSize,
+    child: Center(child: Icon(icon, color: Colors.white, size: 19)));
+
+class _CiFilesButton extends StatelessWidget {
+  final String id;
+  final FFI ffi;
+  const _CiFilesButton({Key? key, required this.id, required this.ffi})
+      : super(key: key);
+
+  @override
+  Widget build(BuildContext context) => _IconMenuButton(
+        icon: _ciIcon(Icons.drive_file_move_outlined),
+        tooltip: 'Transférer des fichiers',
+        color: _ToolbarTheme.blueColor,
+        hoverColor: _ToolbarTheme.hoverBlueColor,
+        onPressed: () => connect(context, id,
+            isFileTransfer: true,
+            connToken: bind.sessionGetConnToken(sessionId: ffi.sessionId)),
+      );
+}
+
+class _CiMenu extends StatelessWidget {
+  final String id;
+  final FFI ffi;
+  const _CiMenu({Key? key, required this.id, required this.ffi})
+      : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    final pi = ffi.ffiModel.pi;
+    final keyboard = ffi.ffiModel.keyboard && !ffi.ffiModel.viewOnly;
+    final windows = pi.platform == kPeerPlatformWindows;
+    return _IconSubmenuButton(
+        tooltip: 'Actions Concept Informatique',
+        icon: _ciIcon(Icons.handyman_outlined),
+        ffi: ffi,
+        color: _ToolbarTheme.blueColor,
+        hoverColor: _ToolbarTheme.hoverBlueColor,
+        menuChildrenGetter: (_) {
+          final items = <Widget>[];
+          if (windows &&
+              ffi.ffiModel.keyboard &&
+              ffi.ffiModel.permissions['block_input'] != false) {
+            items.add(Obx(() => CkbMenuButton(
+                value: BlockInputState.find(id).value,
+                onChanged: (v) => CiTechMode.set(ffi, v == true),
+                ffi: ffi,
+                child: const Text('Mode Tech uniquement (client bloqué)'))));
+            items.add(Obx(() => MenuButton(
+                ffi: ffi,
+                onPressed: BlockInputState.find(id).value
+                    ? () => CiTechMode.giveBack(ffi, const Duration(minutes: 2))
+                    : null,
+                child: const Text('Rendre la main 2 min au client'))));
+          }
+          final privacy =
+              toolbarPrivacyMode(PrivacyModeState.find(id), context, id, ffi);
+          for (final t in privacy) {
+            items.add(CkbMenuButton(
+                value: t.value,
+                onChanged: t.onChanged,
+                ffi: ffi,
+                child: privacy.length == 1
+                    ? const Text('Écran noir chez le client')
+                    : t.child));
+          }
+          if (items.isNotEmpty) items.add(Divider());
+          items.add(MenuButton(
+              ffi: ffi,
+              onPressed: () => connect(context, id,
+                  isFileTransfer: true,
+                  connToken: bind.sessionGetConnToken(sessionId: ffi.sessionId)),
+              child: const Text('Transférer des fichiers')));
+          if (keyboard && windows) {
+            items.add(_SubmenuButton(
+                ffi: ffi,
+                child: const Text('Outils Windows'),
+                menuChildren: kCiTools.map((c) => _ciItem(c)).toList()));
+            items.add(_SubmenuButton(
+                ffi: ffi,
+                child: const Text('Diagnostic'),
+                menuChildren: kCiDiagnostics.map((c) => _ciItem(c)).toList()));
+          }
+          final power = <Widget>[];
+          if (keyboard) {
+            power.add(MenuButton(
+                ffi: ffi,
+                onPressed: () => bind.sessionLockScreen(sessionId: ffi.sessionId),
+                child: const Text('Verrouiller la session')));
+          }
+          if (ffi.ffiModel.permissions['restart'] != false) {
+            power.add(MenuButton(
+                ffi: ffi,
+                onPressed: () => showRestartRemoteDevice(
+                    pi, id, ffi.sessionId, ffi.dialogManager),
+                child: const Text('Redémarrer (reconnexion automatique)')));
+          }
+          if (keyboard && windows) power.addAll(kCiPower.map((c) => _ciItem(c)));
+          if (power.isNotEmpty) {
+            items.add(_SubmenuButton(
+                ffi: ffi, child: const Text('Alimentation'), menuChildren: power));
+          }
+          return items;
+        });
+  }
+
+  Widget _ciItem(CiCommand c) => MenuButton(
+      ffi: ffi,
+      onPressed: () => ciRunWithConfirm(ffi, c),
+      trailingIcon: Icon(c.icon, size: 16),
+      child: Text(c.label));
 }
