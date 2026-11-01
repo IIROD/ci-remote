@@ -30,7 +30,7 @@ pub fn register_uri_scheme() {
         return;
     }
     if let Err(err) = write_uri_scheme() {
-        log::warn!("Concept Informatique : liens {} non enregistrés : {err}", crate::get_uri_prefix());
+        hbb_common::log::warn!("Concept Informatique : liens {} non enregistrés : {err}", crate::get_uri_prefix());
     }
 }
 
