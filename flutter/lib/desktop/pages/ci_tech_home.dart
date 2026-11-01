@@ -488,209 +488,358 @@ class _CiTechConsoleState extends State<_CiTechConsole> {
     final rows = _rows;
     final online = _devices.where((d) => d['online'] == true).length;
     final helps = _devices.where((d) => d['help'] != null).length;
-    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-      Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        decoration: const BoxDecoration(
-            color: Colors.white,
-            border: Border(bottom: BorderSide(color: kCiBrand, width: 3))),
-        child: Row(children: [
-          Image.asset('assets/ci_logo.png', height: 36),
+    return LayoutBuilder(builder: (context, box) {
+      final wide = box.maxWidth >= 900;
+      return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        _header(online, helps, box.maxWidth),
+        _toolbar(wide),
+        if (_error != null)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Text(_error!,
+                style: const TextStyle(color: Color(0xFFB45309), fontSize: 13)),
+          ),
+        Expanded(
+          child: !_loaded
+              ? const Center(child: CircularProgressIndicator())
+              : rows.isEmpty
+                  ? const Center(
+                      child: Text('Aucun PC ne correspond.',
+                          style: TextStyle(color: kCiMuted)))
+                  : (wide ? _table(rows) : _cards(rows)),
+        ),
+      ]);
+    });
+  }
+
+  Widget _header(int online, int helps, double width) {
+    final compact = width < 640;
+    return Container(
+      padding:
+          EdgeInsets.symmetric(horizontal: compact ? 12 : 16, vertical: 10),
+      decoration: const BoxDecoration(
+          color: Colors.white,
+          border: Border(bottom: BorderSide(color: kCiBrand, width: 3))),
+      child: Row(children: [
+        Image.asset('assets/ci_logo.png', height: compact ? 28 : 36),
+        if (width >= 560) ...[
           const SizedBox(width: 12),
           const Text('Console technicien',
               style: TextStyle(
                   color: kCiInk, fontSize: 16, fontWeight: FontWeight.w700)),
-          const Spacer(),
-          _kpi('$online / ${_devices.length}', 'en ligne', kCiBrand),
-          const SizedBox(width: 10),
-          _kpi('$helps', "demande${helps > 1 ? 's' : ''} d'aide",
-              helps > 0 ? const Color(0xFFDC2626) : kCiMuted),
+        ],
+        const Spacer(),
+        _kpi('$online/${_devices.length}', compact ? '' : 'en ligne', kCiBrand),
+        const SizedBox(width: 12),
+        _kpi('$helps', compact ? '' : "demande${helps > 1 ? 's' : ''} d'aide",
+            helps > 0 ? const Color(0xFFDC2626) : kCiMuted,
+            icon: compact ? Icons.support_agent : null),
+        if (!compact) ...[
           const SizedBox(width: 16),
           Text(widget.name,
               style: const TextStyle(color: kCiMuted, fontSize: 13)),
-          IconButton(
-            tooltip: 'Se déconnecter',
-            icon: const Icon(Icons.logout, color: kCiMuted),
-            onPressed: () => widget.onSignOut(),
-          ),
-        ]),
-      ),
-      Padding(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-        child: Row(children: [
-          Expanded(
-            child: TextField(
-              onChanged: (v) => setState(() => _query = v),
-              decoration: const InputDecoration(
-                isDense: true,
-                prefixIcon: Icon(Icons.search),
-                hintText:
-                    'Rechercher : client, propriétaire, PC, ID, email, téléphone…',
-                border: OutlineInputBorder(),
-                filled: true,
-                fillColor: Colors.white,
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          SizedBox(
-            width: 170,
-            child: TextField(
-              controller: _connectCtrl,
-              onSubmitted: _connect,
-              decoration: const InputDecoration(
-                  isDense: true,
-                  hintText: 'ID à joindre',
-                  border: OutlineInputBorder(),
-                  filled: true,
-                  fillColor: Colors.white),
-            ),
-          ),
-          const SizedBox(width: 6),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-                backgroundColor: kCiBrand, foregroundColor: Colors.white),
-            onPressed: () => _connect(_connectCtrl.text),
-            child: const Text('Joindre'),
-          ),
-        ]),
-      ),
-      if (_error != null)
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Text(_error!,
-              style: const TextStyle(color: Color(0xFFB45309), fontSize: 13)),
+        ],
+        IconButton(
+          tooltip: 'Se déconnecter (${widget.name})',
+          icon: const Icon(Icons.logout, color: kCiMuted),
+          onPressed: () => widget.onSignOut(),
         ),
-      Expanded(
-        child: !_loaded
-            ? const Center(child: CircularProgressIndicator())
-            : SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
-                child: Container(
-                  decoration: BoxDecoration(
-                      color: Colors.white,
-                      border: Border.all(color: kCiLine),
-                      borderRadius: BorderRadius.circular(10)),
-                  child: rows.isEmpty
-                      ? const Padding(
-                          padding: EdgeInsets.all(24),
-                          child: Text('Aucun PC ne correspond.',
-                              style: TextStyle(color: kCiMuted)))
-                      : SingleChildScrollView(
-                          scrollDirection: Axis.horizontal,
-                          child: DataTable(
-                            sortColumnIndex: _sortColumn,
-                            sortAscending: _sortAsc,
-                            headingTextStyle: const TextStyle(
-                                color: kCiMuted,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w700),
-                            dataRowMinHeight: 48,
-                            dataRowMaxHeight: 72,
-                            columns: [
-                              DataColumn(
-                                  label: const Text('ÉTAT'), onSort: _sort),
-                              DataColumn(
-                                  label: const Text('CLIENT'), onSort: _sort),
-                              DataColumn(
-                                  label: const Text('PROPRIÉTAIRE'),
-                                  onSort: _sort),
-                              DataColumn(
-                                  label: const Text('PC'), onSort: _sort),
-                              DataColumn(
-                                  label: const Text('ID'), onSort: _sort),
-                              DataColumn(
-                                  label: const Text('VU'), onSort: _sort),
-                              const DataColumn(label: Text('')),
-                            ],
-                            rows: rows.map(_row).toList(),
-                          ),
-                        ),
-                ),
-              ),
+      ]),
+    );
+  }
+
+  Widget _toolbar(bool wide) {
+    final search = TextField(
+      onChanged: (v) => setState(() => _query = v),
+      decoration: const InputDecoration(
+        isDense: true,
+        prefixIcon: Icon(Icons.search, size: 20),
+        hintText: 'Rechercher : client, propriétaire, PC, ID, email…',
+      ),
+    );
+    final join = Row(
+        mainAxisSize: wide ? MainAxisSize.min : MainAxisSize.max,
+        children: [
+          SizedBox(
+            width: wide ? 170 : null,
+            child: wide ? _idField() : null,
+          ),
+          if (!wide) Expanded(child: _idField()),
+          const SizedBox(width: 8),
+          SizedBox(
+            height: 44,
+            child: ElevatedButton(
+                onPressed: () => _connect(_connectCtrl.text),
+                child: const Text('Joindre')),
+          ),
+        ]);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 10),
+      child: wide
+          ? Row(children: [
+              Expanded(child: search),
+              const SizedBox(width: 12),
+              join
+            ])
+          : Column(children: [search, const SizedBox(height: 8), join]),
+    );
+  }
+
+  Widget _idField() => TextField(
+        controller: _connectCtrl,
+        onSubmitted: _connect,
+        decoration:
+            const InputDecoration(isDense: true, hintText: 'ID à joindre'),
+      );
+
+  Widget _kpi(String value, String label, Color color, {IconData? icon}) =>
+      Row(children: [
+        if (icon != null) ...[
+          Icon(icon, size: 16, color: color),
+          const SizedBox(width: 3)
+        ],
+        Text(value,
+            style: TextStyle(
+                color: color, fontSize: 16, fontWeight: FontWeight.w700)),
+        if (label.isNotEmpty) ...[
+          const SizedBox(width: 4),
+          Text(label, style: const TextStyle(color: kCiMuted, fontSize: 12)),
+        ],
+      ]);
+
+  // ---------- grand écran : tableau à la largeur de la fenêtre ----------
+
+  static const _columns = [
+    ('ÉTAT', 2),
+    ('CLIENT', 4),
+    ('PROPRIÉTAIRE', 2),
+    ('PC', 3),
+    ('ID', 2),
+    ('VU', 2)
+  ];
+
+  Widget _table(List<Map<String, dynamic>> rows) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+      decoration: BoxDecoration(
+          color: Colors.white,
+          border: Border.all(color: kCiLine),
+          borderRadius: BorderRadius.circular(10)),
+      clipBehavior: Clip.antiAlias,
+      child: Column(children: [
+        Container(
+          color: const Color(0xFFF8FAFC),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: Row(children: [
+            for (var i = 0; i < _columns.length; i++)
+              Expanded(
+                  flex: _columns[i].$2, child: _headerCell(i, _columns[i].$1)),
+            const SizedBox(width: 250),
+          ]),
+        ),
+        const Divider(height: 1, color: kCiLine),
+        Expanded(
+          child: ListView.separated(
+            itemCount: rows.length,
+            separatorBuilder: (_, __) =>
+                const Divider(height: 1, color: kCiLine),
+            itemBuilder: (_, i) => _tableRow(rows[i]),
+          ),
+        ),
+      ]),
+    );
+  }
+
+  Widget _headerCell(int index, String label) {
+    final active = _sortColumn == index;
+    return InkWell(
+      onTap: () => _sort(index, active ? !_sortAsc : true),
+      child: Row(children: [
+        Flexible(
+          child: Text(label,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                  color: active ? kCiInk : kCiMuted,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: .3)),
+        ),
+        if (active)
+          Icon(_sortAsc ? Icons.arrow_upward : Icons.arrow_downward,
+              size: 14, color: kCiInk),
+      ]),
+    );
+  }
+
+  Widget _cell(int flex, Widget child) => Expanded(
+      flex: flex,
+      child: Padding(padding: const EdgeInsets.only(right: 10), child: child));
+
+  Text _text(String? v, {TextStyle? style}) =>
+      Text((v == null || v.isEmpty) ? '—' : v,
+          maxLines: 1, overflow: TextOverflow.ellipsis, style: style);
+
+  Widget _tableRow(Map<String, dynamic> d) {
+    final help = d['help'] as Map<String, dynamic>?;
+    final contact = _contactOf(d);
+    return Container(
+      color: help != null ? const Color(0xFFFEF2F2) : null,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      child: Row(children: [
+        _cell(2, _status(d)),
+        _cell(
+            4,
+            Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _text(_clientOf(d),
+                      style: const TextStyle(
+                          fontWeight: FontWeight.w600, color: kCiInk)),
+                  if (contact.isNotEmpty)
+                    _text(contact,
+                        style: const TextStyle(color: kCiMuted, fontSize: 12)),
+                  if (help != null) _helpText(help),
+                ])),
+        _cell(2, _text(d['owner'] as String?)),
+        _cell(3, _text(_pcOf(d))),
+        _cell(
+            2,
+            _text(d['id'] as String?,
+                style: const TextStyle(fontFamily: 'monospace'))),
+        _cell(
+            2,
+            _text(_ago(d['last_seen'] as num?),
+                style: const TextStyle(color: kCiMuted))),
+        SizedBox(width: 250, child: _actions(d, help, alignEnd: true)),
+      ]),
+    );
+  }
+
+  // ---------- petit écran : une carte par PC ----------
+
+  Widget _cards(List<Map<String, dynamic>> rows) {
+    return ListView.separated(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+      itemCount: rows.length,
+      separatorBuilder: (_, __) => const SizedBox(height: 10),
+      itemBuilder: (_, i) {
+        final d = rows[i];
+        final help = d['help'] as Map<String, dynamic>?;
+        final contact = _contactOf(d);
+        return Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: help != null ? const Color(0xFFFEF2F2) : Colors.white,
+            border: Border.all(
+                color: help != null ? const Color(0xFFFCA5A5) : kCiLine),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child:
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Row(children: [
+              Expanded(
+                  child: _text(_clientOf(d),
+                      style: const TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 15,
+                          color: kCiInk))),
+              _status(d),
+            ]),
+            const SizedBox(height: 4),
+            _text(
+                [
+                  _pcOf(d),
+                  if ((d['owner'] as String? ?? '').isNotEmpty)
+                    'à ${d['owner']}'
+                ].join(' · '),
+                style: const TextStyle(color: kCiInk)),
+            if (contact.isNotEmpty)
+              _text(contact,
+                  style: const TextStyle(color: kCiMuted, fontSize: 12)),
+            _text('ID ${d['id']} · vu ${_ago(d['last_seen'] as num?)}',
+                style: const TextStyle(color: kCiMuted, fontSize: 12)),
+            if (help != null) ...[
+              const SizedBox(height: 6),
+              _helpText(help, lines: 3)
+            ],
+            const SizedBox(height: 10),
+            _actions(d, help, alignEnd: false),
+          ]),
+        );
+      },
+    );
+  }
+
+  // ---------- éléments communs ----------
+
+  static String _pcOf(Map<String, dynamic> d) => [
+        (d['hostname'] as String?) ?? '?',
+        if (d['username'] != null) '(${d['username']})'
+      ].join(' ');
+
+  static String _contactOf(Map<String, dynamic> d) {
+    final email = (d['email'] as String?) ?? '';
+    final phone = (d['phone'] as String?) ?? '';
+    return [email, if (phone.isNotEmpty && phone != email) phone]
+        .where((v) => v.isNotEmpty)
+        .join(' · ');
+  }
+
+  Widget _status(Map<String, dynamic> d) {
+    final online = d['online'] == true;
+    final session = d['session'] as String?;
+    final color = session != null
+        ? kCiBrand
+        : (online ? const Color(0xFF16A34A) : const Color(0xFFCBD5E1));
+    return Row(mainAxisSize: MainAxisSize.min, children: [
+      Container(
+          width: 9,
+          height: 9,
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+      const SizedBox(width: 6),
+      Flexible(
+        child: Text(
+            session != null
+                ? 'en session ($session)'
+                : (online ? 'en ligne' : 'hors ligne'),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontSize: 13)),
       ),
     ]);
   }
 
-  Widget _kpi(String value, String label, Color color) => Row(children: [
-        Text(value,
-            style: TextStyle(
-                color: color, fontSize: 16, fontWeight: FontWeight.w700)),
-        const SizedBox(width: 4),
-        Text(label, style: const TextStyle(color: kCiMuted, fontSize: 12)),
-      ]);
+  Widget _helpText(Map<String, dynamic> help, {int lines = 2}) => Text(
+        "🆘 ${(help['message'] as String?) ?? "Demande d'aide"}",
+        maxLines: lines,
+        overflow: TextOverflow.ellipsis,
+        style: const TextStyle(color: Color(0xFFB91C1C), fontSize: 12),
+      );
 
-  DataRow _row(Map<String, dynamic> d) {
-    final help = d['help'] as Map<String, dynamic>?;
+  Widget _actions(Map<String, dynamic> d, Map<String, dynamic>? help,
+      {required bool alignEnd}) {
     final online = d['online'] == true;
-    final session = d['session'] as String?;
     final id = (d['id'] as String?) ?? '';
-    final email = d['email'] as String?;
-    final phone = d['phone'] as String?;
-    return DataRow(
-      color:
-          help != null ? WidgetStatePropertyAll(const Color(0xFFFEF2F2)) : null,
-      cells: [
-        DataCell(Row(mainAxisSize: MainAxisSize.min, children: [
-          Container(
-              width: 9,
-              height: 9,
-              decoration: BoxDecoration(
-                  color: session != null
-                      ? kCiBrand
-                      : (online
-                          ? const Color(0xFF16A34A)
-                          : const Color(0xFFCBD5E1)),
-                  shape: BoxShape.circle)),
+    final take = ElevatedButton.icon(
+      icon: const Icon(Icons.mouse, size: 16),
+      label: const Text('Prendre la main'),
+      onPressed: online ? () => _connect(id) : null,
+    );
+    return Row(
+      mainAxisAlignment:
+          alignEnd ? MainAxisAlignment.end : MainAxisAlignment.start,
+      children: [
+        if (alignEnd)
+          take
+        else
+          Expanded(child: SizedBox(height: 40, child: take)),
+        if (help != null) ...[
           const SizedBox(width: 6),
-          Text(
-              session != null
-                  ? 'en session ($session)'
-                  : (online ? 'en ligne' : 'hors ligne'),
-              style: const TextStyle(fontSize: 13)),
-        ])),
-        DataCell(Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(_clientOf(d).isEmpty ? '—' : _clientOf(d),
-                  style: const TextStyle(fontWeight: FontWeight.w600)),
-              if ((email ?? '').isNotEmpty || (phone ?? '').isNotEmpty)
-                Text(
-                    [email, phone]
-                        .where((v) => (v ?? '').isNotEmpty)
-                        .join(' · '),
-                    style: const TextStyle(color: kCiMuted, fontSize: 12)),
-              if (help != null)
-                Text("🆘 ${(help['message'] as String?) ?? "Demande d'aide"}",
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                        color: Color(0xFFB91C1C), fontSize: 12)),
-            ])),
-        DataCell(Text((d['owner'] as String?) ?? '—')),
-        DataCell(Text([
-          (d['hostname'] as String?) ?? '?',
-          if (d['username'] != null) '(${d['username']})'
-        ].join(' '))),
-        DataCell(SelectableText(id,
-            style: const TextStyle(fontFamily: 'monospace'))),
-        DataCell(Text(_ago(d['last_seen'] as num?))),
-        DataCell(Row(mainAxisSize: MainAxisSize.min, children: [
-          ElevatedButton.icon(
-            style: ElevatedButton.styleFrom(
-                backgroundColor: kCiBrand, foregroundColor: Colors.white),
-            icon: const Icon(Icons.mouse, size: 16),
-            label: const Text('Prendre la main'),
-            onPressed: online ? () => _connect(id) : null,
-          ),
-          if (help != null) ...[
-            const SizedBox(width: 6),
-            OutlinedButton(
-                onPressed: () => _closeHelp(help['id'] as int),
-                child: const Text('Traitée')),
-          ],
-        ])),
+          OutlinedButton(
+              onPressed: () => _closeHelp(help['id'] as int),
+              child: const Text('Traitée')),
+        ],
       ],
     );
   }

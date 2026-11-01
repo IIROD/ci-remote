@@ -21,6 +21,32 @@ pub fn download_token() -> String {
     }
 }
 
+/// App technicien (portable, sans installation) : les liens `rustdesk://connect/<ID>` de la console du
+/// site ouvrent cette app. Enregistrement pour l'utilisateur seulement (HKCU), sans droits administrateur.
+/// L'app client (réception seule) et la version installée (déjà enregistrée) ne font rien.
+#[cfg(windows)]
+pub fn register_uri_scheme() {
+    if hbb_common::config::is_incoming_only() || crate::platform::is_installed() {
+        return;
+    }
+    if let Err(err) = write_uri_scheme() {
+        hbb_common::log::warn!("Concept Informatique : liens {} non enregistrés : {err}", crate::get_uri_prefix());
+    }
+}
+
+#[cfg(windows)]
+fn write_uri_scheme() -> std::io::Result<()> {
+    use winreg::{enums::HKEY_CURRENT_USER, RegKey};
+    let exe = std::env::current_exe()?;
+    let name = crate::get_app_name();
+    let (key, _) = RegKey::predef(HKEY_CURRENT_USER)
+        .create_subkey(format!("Software\\Classes\\{}", name.to_lowercase()))?;
+    key.set_value("", &format!("URL:{name}"))?;
+    key.set_value("URL Protocol", &"")?;
+    let (command, _) = key.create_subkey("shell\\open\\command")?;
+    command.set_value("", &format!("\"{}\" \"%1\"", exe.display()))
+}
+
 fn exe_name() -> String {
     // Version portable : le nom du fichier téléchargé est transmis par le lanceur.
     if let Ok(name) = std::env::var(crate::common::PORTABLE_APPNAME_RUNTIME_ENV_KEY) {
