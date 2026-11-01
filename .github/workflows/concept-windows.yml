@@ -139,6 +139,8 @@ jobs:
 
       - name: Build self-extracted executable
         shell: bash
+        env:
+          CI_PORTABLE_DIR: ci-remote   # dossier d'extraction propre à l'app client
         run: |
           sed -i '/dpiAware/d' res/manifest.xml
           pushd ./libs/portable
@@ -170,6 +172,8 @@ jobs:
 
       - name: Pack technician app
         shell: bash
+        env:
+          CI_PORTABLE_DIR: ci-tech   # dossier d'extraction propre à l'app technicien
         run: |
           pushd ./libs/portable
           python3 ./generate.py -f ../../rustdesk-tech/ -o . -e ../../rustdesk-tech/rustdesk.exe

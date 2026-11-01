@@ -29,6 +29,11 @@ const SET_FOREGROUND_WINDOW_ENV_KEY: &str = "SET_FOREGROUND_WINDOW";
 // custom client gets its own directory instead of sharing RustDesk's. Falls back to
 // APP_PREFIX when no package is injected, which keeps stock builds unchanged.
 fn app_dir_name(exe: &str) -> String {
+    // Concept Informatique : app client et app technicien embarquent le même rustdesk.exe ; un
+    // dossier propre à chaque app (fixé à la compilation) évite qu'elles s'écrasent mutuellement.
+    if let Some(dir) = option_env!("CI_PORTABLE_DIR").filter(|d| !d.is_empty()) {
+        return dir.to_owned();
+    }
     Path::new(&exe.replace('\\', "/"))
         .file_stem()
         .and_then(|stem| stem.to_str())
