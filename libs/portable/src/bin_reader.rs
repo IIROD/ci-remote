@@ -209,6 +209,13 @@ impl BinaryData {
         buf
     }
 
+    /// Concept Informatique : le fichier extrait est-il complet et identique au paquet ?
+    pub fn is_intact(&self, prefix: &Path) -> bool {
+        fs::read(prefix.join(&self.path))
+            .map(|f| format!("{:x}", md5::compute(&f)) == String::from_utf8_lossy(self.md5_code))
+            .unwrap_or(false)
+    }
+
     pub fn write_to_file(&self, prefix: &Path) {
         let p = prefix.join(&self.path);
         if let Some(parent) = p.parent() {

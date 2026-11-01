@@ -42,6 +42,13 @@ fn app_dir_name(exe: &str) -> String {
         .unwrap_or_else(|| APP_PREFIX.to_owned())
 }
 
+/// Lanceur compilé pour une app Concept Informatique (dossier propre) : seuls ces lanceurs arrêtent des
+/// processus, et uniquement ceux de leur dossier (jamais un RustDesk installé à côté).
+#[cfg_attr(not(windows), allow(dead_code))]
+fn is_ci_build() -> bool {
+    option_env!("CI_PORTABLE_DIR").is_some_and(|d| !d.is_empty())
+}
+
 fn is_timestamp_matches(dir: &Path, ts: &mut u64) -> bool {
     let Ok(app_metadata) = std::str::from_utf8(APP_METADATA) else {
         return true;
@@ -180,6 +187,11 @@ fn setup(
 
     let mut ts = 0;
     if clear || !is_timestamp_matches(&dir, &mut ts) {
+        // Nouvelle version : l'ancienne, si elle tourne encore depuis ce dossier, verrouillerait ses fichiers.
+        #[cfg(windows)]
+        if is_ci_build() {
+            win::stop_processes_in(&dir);
+        }
         #[cfg(windows)]
         if _args.is_empty() {
             *_ui = true;
@@ -191,6 +203,26 @@ fn setup(
     metadata_paths.extend(remove_dropped_package_files(&dir, &reader.package_paths));
     for file in reader.files.iter() {
         file.write_to_file(&dir);
+    }
+    // Concept Informatique : auto-réparation. Un fichier incomplet (verrouillé par un processus encore
+    // actif pendant l'extraction) donnait « Image incorrecte » au lancement : on arrête les processus de
+    // notre dossier, on réextrait, et si ce n'est toujours pas bon on l'explique au lieu de planter.
+    #[cfg(windows)]
+    if is_ci_build() && !reader.files.iter().all(|f| f.is_intact(&dir)) {
+        win::stop_processes_in(&dir);
+        for file in reader.files.iter() {
+            file.write_to_file(&dir);
+        }
+        if !reader.files.iter().all(|f| f.is_intact(&dir)) {
+            if _args.is_empty() {
+                win::show_error(
+                    "L'assistance à distance est déjà ouverte ou bloquée.\n\n\
+                     Fermez-la (icône près de l'horloge), ou redémarrez l'ordinateur, puis relancez ce fichier.\n\n\
+                     Concept Informatique : 069 57 59 11",
+                );
+            }
+            return None;
+        }
     }
     write_meta(&dir, ts, &metadata_paths);
     #[cfg(windows)]
@@ -327,6 +359,35 @@ mod win {
     // Used for privacy mode(magnifier impl).
     pub const RUNTIME_BROKER_EXE: &'static str = "C:\\Windows\\System32\\RuntimeBroker.exe";
     pub const WIN_TOPMOST_INJECTED_PROCESS_EXE: &'static str = "RuntimeBroker_rustdesk.exe";
+
+    /// Arrête les processus lancés depuis `dir` (et seulement ceux-là).
+    pub(super) fn stop_processes_in(dir: &Path) {
+        let prefix = format!("{}\\", dir.display()).replace('\'', "''");
+        let script = format!(
+            "Get-Process | Where-Object {{ $_.Path -and $_.Path.StartsWith('{}', [System.StringComparison]::OrdinalIgnoreCase) }} \
+             | Stop-Process -Force -ErrorAction SilentlyContinue",
+            prefix
+        );
+        let _ = Command::new("powershell")
+            .args(["-NoProfile", "-NonInteractive", "-Command", &script])
+            .creation_flags(winapi::um::winbase::CREATE_NO_WINDOW)
+            .status();
+        std::thread::sleep(std::time::Duration::from_millis(800));
+    }
+
+    pub(super) fn show_error(text: &str) {
+        use std::os::windows::ffi::OsStrExt;
+        let wide = |s: &str| -> Vec<u16> { std::ffi::OsStr::new(s).encode_wide().chain(Some(0)).collect() };
+        let (text, title) = (wide(text), wide("Assistance à distance"));
+        unsafe {
+            winapi::um::winuser::MessageBoxW(
+                std::ptr::null_mut(),
+                text.as_ptr(),
+                title.as_ptr(),
+                winapi::um::winuser::MB_OK | winapi::um::winuser::MB_ICONWARNING,
+            );
+        }
+    }
 
     pub(super) fn schedule_verified_update_cleanup() -> std::io::Result<()> {
         use windows::{
