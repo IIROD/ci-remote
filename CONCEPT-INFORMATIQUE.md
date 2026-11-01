@@ -31,6 +31,11 @@ Une seule base, deux versions fixées à la compilation par une constante Dart :
   le mode « réception seule ».
 - **Technicien vérifié** (`ci_peer_check.dart`) : quand quelqu'un demande à se connecter, l'app client
   affiche s'il s'agit d'un poste technicien reconnu par le serveur, sinon un avertissement.
+- **Compteur de temps** (`ci_session_counter.dart`) : solde du crédit support pendant la session
+  (`-30:00` → `+00:20 · 0,20 €`), minutes offertes au début (« Offert 4:12 »). App technicien : pastille
+  dans la barre d'onglets de la session (dans la barre d'outils en plein écran). App client : encart
+  dans la fenêtre de connexion, et bloc « Mon suivi » sur l'accueil (crédit, mois, dernières
+  interventions). Calcul côté serveur (`/api/v1/*/counter`), l'app compte seule entre deux lectures.
 - Données : API d'assistance (`/api/v1/device/*`), le PC s'identifie par son ID, son identifiant
   machine et son code de téléchargement.
 

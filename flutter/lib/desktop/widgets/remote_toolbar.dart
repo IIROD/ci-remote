@@ -7,6 +7,7 @@ import 'package:flutter_hbb/common/widgets/audio_input.dart';
 import 'package:flutter_hbb/common/widgets/dialog.dart';
 import 'package:flutter_hbb/common/widgets/keyboard_shortcuts/display.dart';
 import 'package:flutter_hbb/common/widgets/toolbar.dart';
+import 'package:flutter_hbb/desktop/pages/ci_session_counter.dart';
 import 'package:flutter_hbb/models/chat_model.dart';
 import 'package:flutter_hbb/models/state_model.dart';
 import 'package:flutter_hbb/consts.dart';
@@ -804,6 +805,10 @@ class _RemoteToolbarState extends State<RemoteToolbar> {
       BuildContext context, _ToolbarEdge edge, bool isHorizontal) {
     final List<Widget> toolbarItems = [];
     toolbarItems.add(_PinMenu(state: widget.state));
+    if (isCiTech) {
+      toolbarItems
+          .add(CiTechCounter(peerId: widget.id, fullscreenOnly: true));
+    }
     toolbarItems.add(Obx(() {
       final privacyModeState = PrivacyModeState.find(widget.id);
       if ((privacyModeState.isEmpty ||
