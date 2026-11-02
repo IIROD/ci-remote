@@ -2330,8 +2330,11 @@ class CanvasModel with ChangeNotifier {
   static double get rightToEdge =>
       isDesktop ? windowBorderWidth + kDragToResizeAreaPadding.right : 0;
   static double get topToEdge => isDesktop
-      ? tabBarHeight + windowBorderWidth + kDragToResizeAreaPadding.top
+      ? tabBarHeight + windowBorderWidth + kDragToResizeAreaPadding.top + _ciTechBarHeight
       : 0;
+  // Concept Informatique : barre d'actions de l'app technicien (kCiTechBarHeight, ci_tech_bar.dart).
+  static const double _ciTechBarHeight =
+      String.fromEnvironment('CI_ROLE') == 'tech' ? 60 : 0;
   static double get bottomToEdge =>
       isDesktop ? windowBorderWidth + kDragToResizeAreaPadding.bottom : 0;
 

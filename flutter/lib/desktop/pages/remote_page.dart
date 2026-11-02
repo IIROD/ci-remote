@@ -7,6 +7,8 @@ import 'package:flutter/scheduler.dart';
 import 'package:get/get.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_hbb/models/state_model.dart';
+import 'package:flutter_hbb/desktop/pages/ci_session_counter.dart';
+import 'package:flutter_hbb/desktop/pages/ci_tech_bar.dart';
 
 import '../../consts.dart';
 import '../../common/widgets/overlay.dart';
@@ -798,6 +800,7 @@ class _RemotePageState extends State<RemotePage>
 
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.background,
+      appBar: isCiTech ? CiTechBar(id: widget.id, ffi: _ffi) : null,
       body: Obx(() {
         final imageReady = _ffi.ffiModel.pi.isSet.isTrue &&
             _ffi.ffiModel.waitForFirstImage.isFalse;
