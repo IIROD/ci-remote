@@ -9,6 +9,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_hbb/common.dart';
 import 'package:flutter_hbb/models/platform_model.dart';
+import 'package:flutter_hbb/desktop/pages/ci_update.dart';
 import 'package:http/http.dart' as http;
 import 'package:window_manager/window_manager.dart';
 
@@ -141,6 +142,7 @@ class _CiClientHomeState extends State<CiClientHome> {
     _statusTimer =
         periodic_immediate(const Duration(seconds: 1), _updateStatus);
     _refreshTimer = periodic_immediate(const Duration(seconds: 30), _refresh);
+    CiUpdater.start();
   }
 
   @override

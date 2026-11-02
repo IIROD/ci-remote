@@ -284,6 +284,10 @@ fn execute(path: PathBuf, args: Vec<String>, _ui: bool) {
     }
 
     cmd.env(APPNAME_RUNTIME_ENV_KEY, exe_name);
+    // Concept Informatique : chemin complet de l'exe téléchargé, pour que l'app se mette à jour à sa place.
+    if is_ci_build() {
+        cmd.env("CI_PORTABLE_EXE", &exe);
+    }
     if use_null_stdio() {
         cmd.stdin(Stdio::null())
             .stdout(Stdio::null())
