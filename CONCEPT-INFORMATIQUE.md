@@ -68,7 +68,10 @@ Une seule base, deux versions fixées à la compilation par une constante Dart :
   release GitHub, vérifie le SHA-256 donné par le serveur (certutil), remplace l'exe téléchargé par le
   client sous le même nom (le lanceur transmet son chemin, `CI_PORTABLE_EXE`) et le relance : le lanceur
   arrête l'ancienne version et extrait la nouvelle. App client : seule, hors session ; app technicien :
-  bandeau « Redémarrer ». Jamais de retour à une version plus ancienne.
+  bandeau « Redémarrer ». Jamais de retour à une version plus ancienne. « Vérifier les mises à jour »
+  (pied de page de l'app client, icône dans l'en-tête de la console technicien) le fait tout de suite.
+  Chaque release de `main` est épinglée seule dans Concept_Assist par le workflow (étape « Pin in
+  Concept_Assist », secret `CONCEPT_ASSIST_TOKEN`) ; sans le secret, l'épinglage reste manuel.
 - Données : API d'assistance (`/api/v1/device/*`), le PC s'identifie par son ID, son identifiant
   machine et son code de téléchargement.
 
