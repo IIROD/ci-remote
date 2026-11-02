@@ -31,9 +31,7 @@ import 'package:window_manager/window_manager.dart';
 import '../../common.dart';
 
 const _kRequestSize = Size(500, 540);
-const _kOverlaySize = Size(340, 118);
-const _kConfirmSize = Size(340, 190);
-const _kChatSize = Size(360, 560);
+const _kOverlayWidth = 340.0;
 const _kRequestTimeout = 45;
 const _kEndDelay = Duration(seconds: 120);
 
@@ -42,6 +40,7 @@ const _kNightLine = Color(0x595EEAD4);
 const _kSoft = Color(0xFFCBD5E1);
 const _kDim = Color(0xFF94A3B8);
 const _kAmber = Color(0xFFFBBF24);
+const _kViolet = Color(0xFFC4B5FD);
 
 class CiCmShell extends StatefulWidget {
   final Widget child;
@@ -451,6 +450,8 @@ class _CiSessionOverlayState extends State<_CiSessionOverlay> with CiCounterPoll
   bool _cancelled = false;
   Timer? _guard;
   String _verifiedName = '';
+  final _contentKey = GlobalKey();
+  double _contentHeight = 118;
 
   @override
   void initState() {
@@ -511,7 +512,10 @@ class _CiSessionOverlayState extends State<_CiSessionOverlay> with CiCounterPoll
     final d = data;
     final deadline = _deadline;
     widget.onTechName(_techName);
-    widget.onSize(widget.chatOpen ? _kChatSize : (_confirm ? _kConfirmSize : _kOverlaySize));
+    // La fenêtre prend la hauteur de son contenu (échelle d'affichage et taille du texte de Windows),
+    // plus la discussion quand elle est ouverte.
+    widget.onSize(Size(_kOverlayWidth, _contentHeight + 2 + (widget.chatOpen ? _chatHeight() : 0)));
+    WidgetsBinding.instance.addPostFrameCallback((_) => _measure());
     final tech = _techName.isNotEmpty ? _techName : 'votre technicien';
     final over = d != null && d.active && d.balance > 0;
     final timeColor = over ? _kAmber : Colors.white;
@@ -567,6 +571,7 @@ class _CiSessionOverlayState extends State<_CiSessionOverlay> with CiCounterPoll
     }
 
     final overlay = Padding(
+      key: _contentKey,
       padding: const EdgeInsets.fromLTRB(12, 9, 12, 10),
       child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         Row(children: [
@@ -584,19 +589,6 @@ class _CiSessionOverlayState extends State<_CiSessionOverlay> with CiCounterPoll
               style: const TextStyle(color: _kSoft, fontSize: 12),
             ),
           ),
-          if (d != null && d.active && d.freeLeft > 0)
-            Container(
-              margin: const EdgeInsets.only(left: 6),
-              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-              decoration:
-                  BoxDecoration(color: const Color(0x597C3AED), borderRadius: BorderRadius.circular(999)),
-              child: Text('Offert ${ciClock(d.freeLeft)}',
-                  style: const TextStyle(
-                      color: Color(0xFFE9D5FF),
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      fontFeatures: [FontFeature.tabularFigures()])),
-            ),
           Tooltip(
             message: widget.chatOpen ? 'Fermer la discussion' : 'Discussion avec $tech',
             child: InkWell(
@@ -612,7 +604,7 @@ class _CiSessionOverlayState extends State<_CiSessionOverlay> with CiCounterPoll
         ]),
         const SizedBox(height: 4),
         SizedBox(
-          height: 34,
+          height: MediaQuery.textScalerOf(context).scale(34),
           child: FittedBox(
             fit: BoxFit.scaleDown,
             child: Row(
@@ -620,6 +612,14 @@ class _CiSessionOverlayState extends State<_CiSessionOverlay> with CiCounterPoll
               textBaseline: TextBaseline.alphabetic,
               children: d == null || !d.active
                   ? [Text(error ?? 'Compteur…', style: const TextStyle(color: _kDim, fontSize: 13))]
+                  : d.freeLeft > 0
+                  ? [
+                      // Minutes offertes : décomptées en grand, le crédit n'est pas encore touché
+                      Text(ciClock(d.freeLeft), style: _big(_kViolet)),
+                      const SizedBox(width: 10),
+                      const Text('offertes',
+                          style: TextStyle(color: _kViolet, fontSize: 13, fontWeight: FontWeight.w600)),
+                    ]
                   : [
                       Text(ciSigned(d.balance), style: _big(timeColor)),
                       if (over && d.rate > 0) ...[
@@ -645,6 +645,7 @@ class _CiSessionOverlayState extends State<_CiSessionOverlay> with CiCounterPoll
 
     return Material(
       color: _kNight,
+      clipBehavior: Clip.hardEdge,
       child: Container(
         decoration: BoxDecoration(border: Border.all(color: _kNightLine)),
         child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
@@ -664,23 +665,38 @@ class _CiSessionOverlayState extends State<_CiSessionOverlay> with CiCounterPoll
   TextStyle _big(Color c) => TextStyle(
       color: c, fontSize: 26, fontWeight: FontWeight.w800, height: 1.1, fontFeatures: const [FontFeature.tabularFigures()]);
 
+  void _measure() {
+    if (!mounted) return;
+    final h = _contentKey.currentContext?.size?.height;
+    if (h != null && (h - _contentHeight).abs() > 0.5) setState(() => _contentHeight = h.ceilToDouble());
+  }
+
+  /// Discussion : un tiers de la hauteur de l'écran, entre 220 et 320 px.
+  double _chatHeight() {
+    final displays = WidgetsBinding.instance.platformDispatcher.displays;
+    if (displays.isEmpty) return 280;
+    final d = displays.first;
+    return (d.size.height / d.devicePixelRatio / 3).clamp(220, 320).toDouble();
+  }
+
   Widget _bar(Color bg, Color line, Widget child) => Container(
-        height: 28,
-        padding: const EdgeInsets.symmetric(horizontal: 10),
+        constraints: const BoxConstraints(minHeight: 28),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
         decoration: BoxDecoration(color: bg, border: Border.all(color: line), borderRadius: BorderRadius.circular(8)),
         child: child,
       );
 
-  Widget _button(String text, Color bg, Color line, Color fg, VoidCallback onTap) => SizedBox(
-        height: 28,
-        child: TextButton(
-          onPressed: onTap,
-          style: TextButton.styleFrom(
-              backgroundColor: bg,
-              foregroundColor: fg,
-              padding: EdgeInsets.zero,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8), side: BorderSide(color: line))),
-          child: Text(text, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-        ),
+  Widget _button(String text, Color bg, Color line, Color fg, VoidCallback onTap) => TextButton(
+        onPressed: onTap,
+        style: TextButton.styleFrom(
+            backgroundColor: bg,
+            foregroundColor: fg,
+            minimumSize: const Size(0, 30),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            visualDensity: VisualDensity.compact,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8), side: BorderSide(color: line))),
+        child: Text(text,
+            textAlign: TextAlign.center, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
       );
 }
