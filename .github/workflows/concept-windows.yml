@@ -224,3 +224,44 @@ jobs:
             ./output/ci-remote-x86_64.exe
             ./output/ci-tech-x86_64.exe
             ./output/SHA256SUMS
+
+      # Concept Informatique : épingle aussitôt cette version dans Concept_Assist (server/app-release.json).
+      # Le serveur l'applique seul (minuteur 10 min) et les apps s'y mettent à jour. Sans le secret
+      # CONCEPT_ASSIST_TOKEN (jeton GitHub, droit « Contents: write » sur Concept_Assist seulement), rien n'est fait.
+      - name: Pin in Concept_Assist
+        env:
+          PIN_TOKEN: ${{ secrets.CONCEPT_ASSIST_TOKEN }}
+          TAG: build-${{ github.run_number }}
+        run: |
+          if [ -z "$PIN_TOKEN" ]; then
+            echo "CONCEPT_ASSIST_TOKEN absent : épinglage à faire à la main."
+            exit 0
+          fi
+          python3 - <<'PY'
+          import base64, json, os, re, sys, urllib.request
+          tag, token = os.environ["TAG"], os.environ["PIN_TOKEN"]
+          sums = {}
+          for line in open("output/SHA256SUMS", encoding="utf-8"):
+              m = re.fullmatch(r"([0-9a-f]{64}) [ *](\S+)", line.strip())
+              if m:
+                  sums[m.group(2)] = m.group(1)
+          client, tech = sums.get("ci-remote-x86_64.exe"), sums.get("ci-tech-x86_64.exe")
+          if not client or not tech:
+              sys.exit("SHA256SUMS incomplet : rien n'est épinglé")
+          url = "https://api.github.com/repos/IIROD/Concept_Assist/contents/server/app-release.json"
+          headers = {"Authorization": f"Bearer {token}", "Accept": "application/vnd.github+json",
+                     "X-GitHub-Api-Version": "2022-11-28", "User-Agent": "ci-remote-pin"}
+          with urllib.request.urlopen(urllib.request.Request(url + "?ref=main", headers=headers)) as r:
+              current = json.load(r)
+          pinned = json.loads(base64.b64decode(current["content"]))
+          if int(str(pinned.get("tag", "build-0")).split("-")[-1] or 0) >= int(tag.split("-")[-1]):
+              print(f"Déjà épinglé : {pinned.get('tag')} (rien à faire pour {tag})")
+              sys.exit(0)
+          new = {"repo": "IIROD/ci-remote", "tag": tag, "sha256": client, "tech_sha256": tech}
+          body = {"message": f"chore: épingle {tag} (automatique, release ci-remote)",
+                  "content": base64.b64encode((json.dumps(new, indent=2) + "\n").encode()).decode(),
+                  "sha": current["sha"], "branch": "main"}
+          req = urllib.request.Request(url, data=json.dumps(body).encode(), headers=headers, method="PUT")
+          with urllib.request.urlopen(req) as r:
+              print(f"Épinglé : {tag} ({r.status})")
+          PY

@@ -13,6 +13,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_hbb/common.dart';
 import 'package:flutter_hbb/desktop/pages/ci_actions.dart';
 import 'package:flutter_hbb/desktop/pages/ci_client_home.dart';
 import 'package:http/http.dart' as http;
@@ -68,36 +69,44 @@ class CiUpdater {
     }
   }
 
-  static Future<void> check() async {
-    if (_busy || ready.value != null) return;
+  /// Vérifie et télécharge ; renvoie ce qui s'est passé (affiché quand on clique sur le bouton).
+  static Future<String> check() async {
+    if (ciBuildNumber(kCiBuild) == 0) return 'Version de développement : pas de mise à jour automatique.';
+    if (ready.value != null) return 'Nouvelle version prête (${ready.value}).';
+    if (_busy) return 'Vérification déjà en cours…';
     _busy = true;
     try {
       final target = _outerExe();
-      if (target == null) return;
+      if (target == null) return 'Mise à jour impossible : fichier de l\'app introuvable sur ce PC.';
       final res = _tech ? await CiTechApi.get('/api/v1/tech/app') : await CiDeviceApi.get('/api/v1/device/app');
-      if (res.statusCode != 200) return;
+      if (res.statusCode == 401) return 'Reconnectez-vous, puis réessayez.';
+      if (res.statusCode != 200) return 'Aucune version publiée pour le moment (${res.statusCode}).';
       final j = jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
       final tag = j['tag'] as String? ?? '';
       final sha = (j['sha256'] as String? ?? '').toLowerCase();
       final url = j['url'] as String? ?? '';
-      if (ciBuildNumber(tag) <= ciBuildNumber(kCiBuild) ||
-          !RegExp(r'^[0-9a-f]{64}$').hasMatch(sha) ||
-          !url.startsWith('https://github.com/')) {
-        return;
+      if (ciBuildNumber(tag) <= ciBuildNumber(kCiBuild)) return 'L\'app est à jour ($kCiBuild).';
+      if (!RegExp(r'^[0-9a-f]{64}$').hasMatch(sha) || !url.startsWith('https://github.com/')) {
+        return 'Version publiée invalide : rien n\'a été changé.';
       }
       final file = File('$target.update');
       await _download(url, file);
       if (await _sha256(file.path) != sha) {
         file.deleteSync();
         debugPrint('Concept Informatique : mise à jour $tag refusée (empreinte différente)');
-        return;
+        return 'Téléchargement refusé (empreinte différente) : rien n\'a été changé.';
       }
       _file = file.path;
       _target = target;
       ready.value = tag;
-      if (!_tech) unawaited(_applyWhenIdle());
+      if (!_tech) {
+        unawaited(_applyWhenIdle());
+        return 'Nouvelle version ($tag) téléchargée : l\'app redémarre dès qu\'aucune intervention n\'est en cours.';
+      }
+      return 'Nouvelle version ($tag) prête : cliquez sur « Redémarrer ».';
     } catch (e) {
       debugPrint('Concept Informatique : mise à jour : $e');
+      return 'Mise à jour impossible pour le moment : réessayez plus tard.';
     } finally {
       _busy = false;
     }
@@ -212,4 +221,49 @@ class CiUpdateBanner extends StatelessWidget {
           );
         },
       );
+}
+
+/// « Vérifier les mises à jour » : sans attendre la vérification automatique (toutes les 6 h).
+class CiUpdateButton extends StatefulWidget {
+  /// Icône seule (en-tête de la console technicien), sinon lien texte.
+  final bool icon;
+  const CiUpdateButton({Key? key, this.icon = false}) : super(key: key);
+
+  @override
+  State<CiUpdateButton> createState() => _CiUpdateButtonState();
+}
+
+class _CiUpdateButtonState extends State<CiUpdateButton> {
+  bool _busy = false;
+
+  Future<void> _run() async {
+    setState(() => _busy = true);
+    final message = await CiUpdater.check();
+    if (!mounted) return;
+    setState(() => _busy = false);
+    showToast(message, timeout: const Duration(seconds: 6));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final version = kCiBuild.isEmpty ? 'développement' : kCiBuild.replaceFirst('build-', 'build ');
+    if (widget.icon) {
+      return IconButton(
+        tooltip: 'Vérifier les mises à jour (version $version)',
+        onPressed: _busy ? null : _run,
+        icon: _busy
+            ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: kCiBrand))
+            : const Icon(Icons.system_update_alt, color: kCiMuted),
+      );
+    }
+    return Row(mainAxisSize: MainAxisSize.min, children: [
+      Text('Version $version · ', style: const TextStyle(color: kCiMuted, fontSize: 11.5)),
+      InkWell(
+        onTap: _busy ? null : _run,
+        child: Text(_busy ? 'vérification…' : 'Vérifier les mises à jour',
+            style: const TextStyle(
+                color: kCiBrandDark, fontSize: 11.5, fontWeight: FontWeight.w600, decoration: TextDecoration.underline)),
+      ),
+    ]);
+  }
 }

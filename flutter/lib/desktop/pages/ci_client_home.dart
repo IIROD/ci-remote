@@ -724,11 +724,15 @@ class _CiClientHomeState extends State<CiClientHome> {
         decoration: const BoxDecoration(
             color: Colors.white,
             border: Border(top: BorderSide(color: kCiLine))),
-        child: const Text(
-          "Un technicien ne peut voir votre écran que si vous l'acceptez.\n"
-          "Concept Informatique · $kCiShopPhone · conceptinformatique.be",
-          textAlign: TextAlign.center,
-          style: TextStyle(color: kCiMuted, fontSize: 11.5, height: 1.4),
-        ),
+        child: const Column(mainAxisSize: MainAxisSize.min, children: [
+          Text(
+            "Un technicien ne peut voir votre écran que si vous l'acceptez.\n"
+            "Concept Informatique · $kCiShopPhone · conceptinformatique.be",
+            textAlign: TextAlign.center,
+            style: TextStyle(color: kCiMuted, fontSize: 11.5, height: 1.4),
+          ),
+          SizedBox(height: 4),
+          CiUpdateButton(),
+        ]),
       );
 }

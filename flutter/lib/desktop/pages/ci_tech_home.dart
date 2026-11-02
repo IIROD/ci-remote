@@ -587,6 +587,7 @@ class _CiTechConsoleState extends State<_CiTechConsole> {
           Text(widget.name,
               style: const TextStyle(color: kCiMuted, fontSize: 13)),
         ],
+        const CiUpdateButton(icon: true),
         IconButton(
           tooltip: 'Se déconnecter (${widget.name})',
           icon: const Icon(Icons.logout, color: kCiMuted),
