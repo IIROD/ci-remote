@@ -141,7 +141,8 @@ class _CiCmShellState extends State<CiCmShell> {
                 _closeWhenAllGone(model);
                 view = const ColoredBox(color: _kNight);
               }
-              return Stack(children: [
+              // expand : sinon la pile prend la taille de la fenêtre RustDesk masquée (0×0) et rien ne s'affiche
+              return Stack(fit: StackFit.expand, children: [
                 Offstage(child: widget.child),
                 Positioned.fill(child: view),
               ]);
