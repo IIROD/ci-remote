@@ -29,17 +29,24 @@ Une seule base, deux versions fixées à la compilation par une constante Dart :
   admin du site (mot de passe + code reçu par email), puis tableau des PC clients (tri, recherche,
   demandes d'aide en tête, « Prendre la main », joindre un ID). Compilée par le même workflow, sans
   le mode « réception seule ».
-- **Technicien vérifié** (`ci_peer_check.dart`) : quand quelqu'un demande à se connecter, l'app client
-  affiche s'il s'agit d'un poste technicien reconnu par le serveur, sinon un avertissement.
+- **Demande de connexion (app client)** (`ci_cm_shell.dart`) : la fenêtre RustDesk est remplacée par une
+  carte au centre de l'écran : « Le technicien Jarod souhaiterait prendre le contrôle… » (prénom seul,
+  vérifié par le serveur, sinon avertissement rouge), Autoriser (avec élévation UAC quand Windows la
+  propose) ou Refuser ; refus automatique au bout de 45 s.
 - **Compteur de temps** (`ci_session_counter.dart`) : solde du crédit support pendant la session
-  (`-30:00` → `+00:20 · 0,20 €`), minutes offertes au début (« Offert 4:12 »). App technicien : pastille
-  dans la barre d'onglets de la session (dans la barre d'outils en plein écran). App client : encart
-  dans la fenêtre de connexion, et bloc « Mon suivi » sur l'accueil (crédit, mois, dernières
+  (`-30:00`, puis `+00:20 | 0,20 €` : le montant n'apparaît qu'en dépassement), minutes offertes au
+  début (« Offert 4:12 »). App technicien : dans sa barre d'actions. App client : overlay compact en
+  haut de l'écran pendant la session, et bloc « Mon suivi » sur l'accueil (crédit, mois, dernières
   interventions). Calcul côté serveur (`/api/v1/*/counter`), l'app compte seule entre deux lectures.
-- **Barre de session (app technicien)** : bouton « Fichiers » direct et menu « Concept » (`ci_actions.dart`,
-  classes `_Ci*` en fin de `remote_toolbar.dart`) : mode Tech uniquement (clavier et souris du client bloqués,
-  client prévenu par la discussion) et « Rendre la main 2 min », Privacy (écran masqué chez le client), outils Windows
-  et diagnostic en un clic (Win+R puis saisie), verrouiller, redémarrer, veille, éteindre. Écran adapté à la
+- **Barre d'actions (app technicien)** (`ci_tech_bar.dart`, logique dans `ci_actions.dart`) : en haut de la
+  session, client et compteur, sélecteur Partagé / Tech uniquement (clavier et souris du client bloqués,
+  client prévenu par la discussion) / Privacy (écran masqué chez le client), « Rendre la main 2 min »,
+  Fichiers, Discussion, Outils (palette avec recherche et récents : outils Windows, diagnostic, console,
+  lancés par Win+R), Alimentation (verrouiller, redémarrer, veille, éteindre), Collègue, qualité d'image,
+  plein écran, Terminer. La barre RustDesk reste pour les réglages avancés.
+- **Demande de fin par le client** : le client ne coupe pas d'un clic ; « Demander la fin de l'accès »
+  (confirmation) prévient le technicien (bandeau : Terminer maintenant ou « Encore 2 min », une fois) et
+  l'app client coupe d'elle-même 2 min plus tard, même si le serveur est injoignable. Écran adapté à la
   fenêtre, qualité et codec automatiques par défaut (`default-settings` de `res/ci-remote/client.json`).
 - **Redémarrage avec reconnexion** : avant de redémarrer, l'app client se programme pour se relancer à
   l'ouverture de session (RunOnce, `src/ci_remote.rs`) et accepte une fois le même technicien vérifié
@@ -47,11 +54,13 @@ Une seule base, deux versions fixées à la compilation par une constante Dart :
 - **App client portable sans droits administrateur** (`src/ci_overlay.rs`) : le blocage clavier/souris passe
   par le crochet de RustDesk (BlockInput exige l'administrateur, erreur 1460) ; « Privacy » est une fenêtre
   noire exclue de la capture (Windows 10 2004+) au lieu du mode RustDesk qui exige le service installé ;
-  la fenêtre de connexion est exclue de la capture (le technicien ne la voit pas) et devient une carte
-  compacte pendant la session (`ci_cm_shell.dart` : technicien, compteur, Détails, Terminer).
+  la fenêtre de connexion est exclue de la capture (le technicien ne la voit pas) et s'efface quand son
+  pointeur passe dessus (ses clics vont dessous) ; le pointeur du technicien est montré au client par un
+  halo à son prénom (crochet souris, évènements injectés), lui aussi exclu de la capture. Un message du
+  technicien ouvre la discussion RustDesk sous l'overlay.
 - **Passer à un collègue** (menu Concept) : le collègue voit le PC en tête de sa console (10 min) et prend
   la main ; l'app client l'accepte sans clic (`ci_reconnect.dart`, confirmé par le serveur) ; même session.
-- **Journal d'actions** : chaque action du menu Concept est notée (`ciLog`, `POST /api/v1/tech/log`),
+- **Journal d'actions** : chaque action de la barre est notée (`ciLog`, `POST /api/v1/tech/log`),
   visible dans l'admin du site (Support → Historique → Journal).
 - Données : API d'assistance (`/api/v1/device/*`), le PC s'identifie par son ID, son identifiant
   machine et son code de téléchargement.

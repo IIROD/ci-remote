@@ -46,6 +46,7 @@ const kCiDiagnostics = [
   CiCommand('Adresse IP et réseau', Icons.router_outlined, 'cmd /k ipconfig /all'),
   CiCommand('Vider le cache DNS', Icons.dns_outlined, 'cmd /k ipconfig /flushdns'),
   CiCommand('Tester Internet (ping)', Icons.network_check, 'cmd /k ping -n 4 8.8.8.8'),
+  CiCommand('Historique de fiabilité', Icons.query_stats, 'perfmon /rel'),
   CiCommand('Espace disque', Icons.storage, 'powershell -NoExit -Command "Get-PSDrive -PSProvider FileSystem"'),
   CiCommand('Vérifier les fichiers système (admin)', Icons.health_and_safety_outlined,
       'powershell -Command "Start-Process cmd -ArgumentList \'/k sfc /scannow\' -Verb RunAs"'),
