@@ -1958,6 +1958,9 @@ pub fn toggle_blank_screen(v: bool) {
 }
 
 pub fn block_input(v: bool) -> (bool, String) {
+    if let Some(res) = crate::ci_overlay::block_input(v) {
+        return res;
+    }
     let v = if v { TRUE } else { FALSE };
     unsafe {
         if BlockInput(v) == TRUE {

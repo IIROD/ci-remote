@@ -132,6 +132,9 @@ class _CiClientHomeState extends State<CiClientHome> {
     super.initState();
     imcomingOnlyHomeSize = kCiClientSize;
     windowManager.setSize(getIncomingOnlyHomeSize());
+    // Fenêtre redimensionnable : deux colonnes quand elle est large (_page)
+    setResizable(true);
+    windowManager.setMinimumSize(const Size(380, 560));
     bind.mainGetMyId().then((id) {
       if (mounted) setState(() => _myId = id);
     });
@@ -308,12 +311,9 @@ class _CiClientHomeState extends State<CiClientHome> {
       color: kCiBg,
       child: Column(children: [
         _header(),
-        Expanded(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-            child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
+        Expanded(child: LayoutBuilder(builder: (context, box) {
+          final wide = box.maxWidth >= 760;
+          final main = <Widget>[
                   if (_link == _Link.notLinked)
                     _banner(
                         "Ce PC n'est pas encore relié à votre compte. Téléchargez l'app depuis votre espace client "
@@ -329,7 +329,7 @@ class _CiClientHomeState extends State<CiClientHome> {
                   _pcCard(),
                   const SizedBox(height: 16),
                   _helpButton(),
-                  if (_usage != null) ...[
+                  if (_usage != null && !wide) ...[
                     const SizedBox(height: 16),
                     _usageCard(_usage!),
                   ],
@@ -343,9 +343,28 @@ class _CiClientHomeState extends State<CiClientHome> {
                                 : kCiBrandDark,
                             fontSize: 13)),
                   ],
-                ]),
-          ),
-        ),
+          ];
+          return SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            child: Center(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(maxWidth: wide ? 1100 : 560),
+                child: wide && _usage != null
+                    ? Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        Expanded(
+                            child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: main)),
+                        const SizedBox(width: 16),
+                        Expanded(child: _usageCard(_usage!)),
+                      ])
+                    : Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: main),
+              ),
+            ),
+          );
+        })),
         _footer(),
       ]),
     );
@@ -471,6 +490,8 @@ class _CiClientHomeState extends State<CiClientHome> {
         .take(5)
         .toList();
     final over = credit != null && credit < 0;
+    final rate = (u['rate'] as num?)?.toDouble() ?? 0;
+    final due = over && rate > 0 ? -credit * rate / 3600 : 0.0;
     return _card(Icons.insights_outlined, 'Mon suivi', [
       if (credit != null)
         Container(
@@ -481,14 +502,26 @@ class _CiClientHomeState extends State<CiClientHome> {
             color: over ? const Color(0xFFFFFBEB) : const Color(0xFFE6F6F4),
             borderRadius: BorderRadius.circular(10),
           ),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(over ? 'Crédit dépassé de' : 'Crédit restant',
-                style: const TextStyle(color: kCiMuted, fontSize: 12)),
-            Text(_duration(credit.abs()),
-                style: TextStyle(
-                    color: over ? const Color(0xFFB45309) : kCiBrandDark,
-                    fontSize: 22,
-                    fontWeight: FontWeight.w800)),
+          child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(over ? 'Crédit dépassé de' : 'Crédit restant',
+                    style: const TextStyle(color: kCiMuted, fontSize: 12)),
+                Text(_duration(credit.abs()),
+                    style: TextStyle(
+                        color: over ? const Color(0xFFB45309) : kCiBrandDark,
+                        fontSize: 22,
+                        fontWeight: FontWeight.w800)),
+              ]),
+            ),
+            Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+              const Text('Montant dû', style: TextStyle(color: kCiMuted, fontSize: 12)),
+              Text(_euros(due),
+                  style: TextStyle(
+                      color: due > 0 ? const Color(0xFFB45309) : kCiInk,
+                      fontSize: 22,
+                      fontWeight: FontWeight.w800)),
+            ]),
           ]),
         ),
       _row('Ce mois-ci',
@@ -499,7 +532,7 @@ class _CiClientHomeState extends State<CiClientHome> {
             style: TextStyle(
                 color: kCiMuted, fontSize: 12, fontWeight: FontWeight.w600)),
         const SizedBox(height: 4),
-        ...sessions.map(_sessionRow),
+        ...sessions.map((x) => _sessionRow(x, rate)),
       ],
       if (free > 0)
         Padding(
@@ -511,12 +544,12 @@ class _CiClientHomeState extends State<CiClientHome> {
     ]);
   }
 
-  Widget _sessionRow(Map<String, dynamic> s) {
+  Widget _sessionRow(Map<String, dynamic> s, double rate) {
     final at = DateTime.fromMillisecondsSinceEpoch(
         (((s['started_at'] as num?) ?? 0) * 1000).toInt());
     String two(int v) => v.toString().padLeft(2, '0');
     final when =
-        '${two(at.day)}/${two(at.month)} ${two(at.hour)}:${two(at.minute)}';
+        '${two(at.day)}/${two(at.month)}/${at.year} à ${two(at.hour)}:${two(at.minute)}';
     final seconds = (s['seconds'] as num?)?.toInt() ?? 0;
     final billed = (s['billed_seconds'] as num?)?.toInt() ?? 0;
     final open = s['open'] == true;
@@ -525,34 +558,57 @@ class _CiClientHomeState extends State<CiClientHome> {
         : billed == 0
             ? ('offert', const Color(0xFF7C3AED))
             : s['settled'] == true
-                ? ('${_duration(billed)} décomptées', kCiMuted)
-                : ('${_duration(billed)} à valider', const Color(0xFFB45309));
-    final who = [s['hostname'], s['tech']]
-        .whereType<String>()
-        .where((v) => v.isNotEmpty)
-        .join(' · ');
+                ? ('décompté', kCiMuted)
+                : ('à valider', const Color(0xFFB45309));
+    final tech = (s['tech'] as String?) ?? '';
+    final owner = (s['owner'] as String?) ?? '';
+    final host = (s['hostname'] as String?) ?? '';
+    final pc = owner.isNotEmpty ? '$host ($owner)' : host;
+    Widget line(IconData icon, String text) => Padding(
+          padding: const EdgeInsets.only(top: 2),
+          child: Row(children: [
+            Icon(icon, size: 13, color: kCiMuted),
+            const SizedBox(width: 5),
+            Expanded(
+                child: Text(text,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(color: kCiMuted, fontSize: 12))),
+          ]),
+        );
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 6),
+      padding: const EdgeInsets.symmetric(vertical: 8),
       decoration: const BoxDecoration(
           border: Border(top: BorderSide(color: kCiLine))),
-      child: Row(children: [
+      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Expanded(
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text('$when · ${_duration(seconds)}',
-                style: const TextStyle(color: kCiInk, fontSize: 13)),
-            if (who.isNotEmpty)
-              Text(who,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(color: kCiMuted, fontSize: 11.5)),
+            Text(when,
+                style: const TextStyle(
+                    color: kCiInk, fontSize: 13, fontWeight: FontWeight.w600)),
+            if (tech.isNotEmpty) line(Icons.support_agent, 'Technicien : $tech'),
+            if (pc.isNotEmpty) line(Icons.computer_outlined, 'PC : $pc'),
+            line(Icons.timer_outlined, 'Durée : ${_duration(seconds)}'),
           ]),
         ),
         const SizedBox(width: 8),
-        Text(status,
-            style: TextStyle(
-                color: color, fontSize: 12, fontWeight: FontWeight.w600)),
+        Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+          Text(status,
+              style: TextStyle(
+                  color: color, fontSize: 12, fontWeight: FontWeight.w700)),
+          if (billed > 0 && !open) ...[
+            Text(_duration(billed),
+                style: const TextStyle(color: kCiInk, fontSize: 12.5)),
+            if (rate > 0)
+              Text(_euros(billed * rate / 3600),
+                  style: const TextStyle(color: kCiMuted, fontSize: 12)),
+          ],
+        ]),
       ]),
     );
   }
+
+  static String _euros(double v) =>
+      '${v.toStringAsFixed(2).replaceAll('.', ',')} €';
 
   static String _duration(int seconds) {
     final h = seconds ~/ 3600, m = (seconds % 3600) ~/ 60;

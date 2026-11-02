@@ -1325,6 +1325,8 @@ impl Connection {
         }
         #[cfg(target_os = "linux")]
         clear_remapped_keycode();
+        #[cfg(windows)]
+        crate::ci_overlay::on_connection_end();
         log::debug!("Input thread exited");
     }
 
@@ -4824,6 +4826,20 @@ impl Connection {
     }
 
     async fn toggle_privacy_mode(&mut self, t: TogglePrivacyMode) {
+        #[cfg(windows)]
+        if crate::ci_overlay::enabled() {
+            let msg = if !self.is_authed_remote_conn() || !self.privacy_mode {
+                crate::common::make_privacy_mode_msg(back_notification::PrivacyModeState::PrvOnFailedDenied, t.impl_key)
+            } else {
+                match crate::ci_overlay::privacy(t.on) {
+                    Ok(()) if t.on => crate::common::make_privacy_mode_msg(back_notification::PrivacyModeState::PrvOnSucceeded, t.impl_key),
+                    Ok(()) => crate::common::make_privacy_mode_msg(back_notification::PrivacyModeState::PrvOffSucceeded, t.impl_key),
+                    Err(e) => crate::common::make_privacy_mode_msg_with_details(back_notification::PrivacyModeState::PrvOnFailed, e, t.impl_key),
+                }
+            };
+            self.send(msg).await;
+            return;
+        }
         if t.on {
             self.turn_on_privacy(t.impl_key).await;
         } else {

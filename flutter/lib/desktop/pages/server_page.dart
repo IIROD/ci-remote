@@ -5,6 +5,7 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_hbb/desktop/pages/ci_client_home.dart';
+import 'package:flutter_hbb/desktop/pages/ci_cm_shell.dart';
 import 'package:flutter_hbb/desktop/pages/ci_peer_check.dart';
 import 'package:flutter_hbb/desktop/pages/ci_reconnect.dart';
 import 'package:flutter_hbb/desktop/pages/ci_session_counter.dart';
@@ -99,7 +100,9 @@ class _DesktopServerPageState extends State<DesktopServerPage>
         builder: (context, serverModel, child) {
           final body = Scaffold(
             backgroundColor: Theme.of(context).colorScheme.background,
-            body: ConnectionManager(),
+            body: isCiClient
+                ? CiCmShell(child: ConnectionManager())
+                : ConnectionManager(),
           );
           return isLinux
               ? buildVirtualWindowFrame(context, body)

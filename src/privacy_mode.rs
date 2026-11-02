@@ -17,7 +17,7 @@ use std::{
 #[cfg(windows)]
 pub mod win_exclude_from_capture;
 #[cfg(windows)]
-mod win_input;
+pub(crate) mod win_input;
 #[cfg(windows)]
 pub mod win_mag;
 #[cfg(windows)]
