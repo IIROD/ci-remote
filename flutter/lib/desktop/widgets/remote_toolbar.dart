@@ -3900,12 +3900,12 @@ class _CiMenu extends StatelessWidget {
                 onChanged: t.onChanged == null
                     ? null
                     : (v) {
-                        ciLog(ffi, 'privacy', v == true ? 'Écran noir activé' : 'Écran noir désactivé');
+                        ciLog(ffi, 'privacy', v == true ? 'Privacy activée' : 'Privacy désactivée');
                         t.onChanged!(v);
                       },
                 ffi: ffi,
                 child: privacy.length == 1
-                    ? const Text('Écran noir chez le client')
+                    ? const Text('Privacy (écran masqué chez le client)')
                     : t.child));
           }
           if (items.isNotEmpty) items.add(Divider());

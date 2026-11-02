@@ -71,6 +71,9 @@ mod hbbs_http;
 
 mod ci_remote;
 
+#[cfg(windows)]
+mod ci_overlay;
+
 #[cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))]
 pub mod clipboard_file;
 

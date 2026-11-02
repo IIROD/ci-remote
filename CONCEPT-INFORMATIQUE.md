@@ -38,12 +38,17 @@ Une seule base, deux versions fixées à la compilation par une constante Dart :
   interventions). Calcul côté serveur (`/api/v1/*/counter`), l'app compte seule entre deux lectures.
 - **Barre de session (app technicien)** : bouton « Fichiers » direct et menu « Concept » (`ci_actions.dart`,
   classes `_Ci*` en fin de `remote_toolbar.dart`) : mode Tech uniquement (clavier et souris du client bloqués,
-  client prévenu par la discussion) et « Rendre la main 2 min », écran noir chez le client, outils Windows
+  client prévenu par la discussion) et « Rendre la main 2 min », Privacy (écran masqué chez le client), outils Windows
   et diagnostic en un clic (Win+R puis saisie), verrouiller, redémarrer, veille, éteindre. Écran adapté à la
   fenêtre, qualité et codec automatiques par défaut (`default-settings` de `res/ci-remote/client.json`).
 - **Redémarrage avec reconnexion** : avant de redémarrer, l'app client se programme pour se relancer à
   l'ouverture de session (RunOnce, `src/ci_remote.rs`) et accepte une fois le même technicien vérifié
   pendant 10 min (`ci_reconnect.dart`). Éteindre ne reconnecte pas.
+- **App client portable sans droits administrateur** (`src/ci_overlay.rs`) : le blocage clavier/souris passe
+  par le crochet de RustDesk (BlockInput exige l'administrateur, erreur 1460) ; « Privacy » est une fenêtre
+  noire exclue de la capture (Windows 10 2004+) au lieu du mode RustDesk qui exige le service installé ;
+  la fenêtre de connexion est exclue de la capture (le technicien ne la voit pas) et devient une carte
+  compacte pendant la session (`ci_cm_shell.dart` : technicien, compteur, Détails, Terminer).
 - **Passer à un collègue** (menu Concept) : le collègue voit le PC en tête de sa console (10 min) et prend
   la main ; l'app client l'accepte sans clic (`ci_reconnect.dart`, confirmé par le serveur) ; même session.
 - **Journal d'actions** : chaque action du menu Concept est notée (`ciLog`, `POST /api/v1/tech/log`),

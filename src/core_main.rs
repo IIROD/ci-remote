@@ -702,6 +702,8 @@ pub fn core_main() -> Option<CoreMainAction> {
             // call connection manager to establish connections
             // meanwhile, return true to call flutter window to show control panel
             crate::ui_interface::start_option_status_sync();
+            #[cfg(windows)]
+            crate::ci_overlay::hide_cm_from_capture();
         } else if args[0] == "--whiteboard" {
             #[cfg(not(any(target_os = "android", target_os = "ios")))]
             {
