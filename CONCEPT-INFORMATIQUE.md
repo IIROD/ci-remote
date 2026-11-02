@@ -62,6 +62,13 @@ Une seule base, deux versions fixées à la compilation par une constante Dart :
   la main ; l'app client l'accepte sans clic (`ci_reconnect.dart`, confirmé par le serveur) ; même session.
 - **Journal d'actions** : chaque action de la barre est notée (`ciLog`, `POST /api/v1/tech/log`),
   visible dans l'admin du site (Support → Historique → Journal).
+- **Mise à jour automatique** (`ci_update.dart`) : l'app compare son numéro de build (`CI_BUILD`, fixé par
+  le workflow) à la version épinglée sur le serveur (`GET /api/v1/device/app` ou `/tech/app`, voir
+  `server/app-release.json` dans Concept_Assist). Si elle est plus récente, l'app la télécharge depuis la
+  release GitHub, vérifie le SHA-256 donné par le serveur (certutil), remplace l'exe téléchargé par le
+  client sous le même nom (le lanceur transmet son chemin, `CI_PORTABLE_EXE`) et le relance : le lanceur
+  arrête l'ancienne version et extrait la nouvelle. App client : seule, hors session ; app technicien :
+  bandeau « Redémarrer ». Jamais de retour à une version plus ancienne.
 - Données : API d'assistance (`/api/v1/device/*`), le PC s'identifie par son ID, son identifiant
   machine et son code de téléchargement.
 

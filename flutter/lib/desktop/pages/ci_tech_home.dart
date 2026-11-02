@@ -9,6 +9,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_hbb/common.dart';
 import 'package:flutter_hbb/desktop/pages/ci_client_home.dart';
+import 'package:flutter_hbb/desktop/pages/ci_update.dart';
 import 'package:flutter_hbb/models/platform_model.dart';
 import 'package:http/http.dart' as http;
 
@@ -38,6 +39,7 @@ class _CiTechHomeState extends State<CiTechHome> {
       _token = bind.mainGetLocalOption(key: _kToken);
       _name = bind.mainGetLocalOption(key: _kName);
     }
+    CiUpdater.start();
   }
 
   void _signedIn(String token, double expires, String name) {
@@ -49,6 +51,7 @@ class _CiTechHomeState extends State<CiTechHome> {
       _name = name;
       _loginNotice = null;
     });
+    CiUpdater.check(); // le jeton était peut-être expiré au démarrage
   }
 
   void _signOut([String? notice]) {
@@ -66,9 +69,14 @@ class _CiTechHomeState extends State<CiTechHome> {
       data: ciTheme(),
       child: Container(
         color: kCiBg,
-        child: _token.isEmpty
-            ? _CiTechLogin(onSignedIn: _signedIn, notice: _loginNotice)
-            : _CiTechConsole(token: _token, name: _name, onSignOut: _signOut),
+        child: Column(children: [
+          const CiUpdateBanner(),
+          Expanded(
+            child: _token.isEmpty
+                ? _CiTechLogin(onSignedIn: _signedIn, notice: _loginNotice)
+                : _CiTechConsole(token: _token, name: _name, onSignOut: _signOut),
+          ),
+        ]),
       ),
     );
   }
