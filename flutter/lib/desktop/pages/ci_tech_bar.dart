@@ -154,21 +154,21 @@ class _CiTechBarState extends State<CiTechBar> with CiCounterPoller<CiTechBar> {
     } else {
       final over = d.balance > 0;
       final color = over ? _amber : Colors.white;
-      parts = [
-        Text(ciSigned(d.balance), style: _num(color)),
-        if (over && d.rate > 0) ...[
-          const Text('  |  ', style: TextStyle(color: Color(0xFF475569))),
-          Text(ciEuros(d.overPrice), style: _num(_amber)),
-        ],
-        if (d.freeLeft > 0)
-          Container(
-            margin: const EdgeInsets.only(left: 8),
-            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-            decoration: BoxDecoration(color: const Color(0x597C3AED), borderRadius: BorderRadius.circular(999)),
-            child: Text('Offert ${ciClock(d.freeLeft)}',
-                style: const TextStyle(color: Color(0xFFE9D5FF), fontSize: 11, fontWeight: FontWeight.w700)),
-          ),
-      ];
+      parts = d.freeLeft > 0
+          ? [
+              // Minutes offertes : décomptées en grand, en violet, avant le crédit
+              Text(ciClock(d.freeLeft), style: _num(const Color(0xFFC4B5FD))),
+              const SizedBox(width: 7),
+              const Text('offertes',
+                  style: TextStyle(color: Color(0xFFC4B5FD), fontSize: 12, fontWeight: FontWeight.w600)),
+            ]
+          : [
+              Text(ciSigned(d.balance), style: _num(color)),
+              if (over && d.rate > 0) ...[
+                const Text('  |  ', style: TextStyle(color: Color(0xFF475569))),
+                Text(ciEuros(d.overPrice), style: _num(_amber)),
+              ],
+            ];
       tip = [
         if (d.credit == null) 'PC non rattaché à un compte client',
         'Temps connecté : ${ciClock(d.secondsNow)}',
