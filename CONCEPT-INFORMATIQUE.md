@@ -71,7 +71,8 @@ Une seule base, deux versions fixées à la compilation par une constante Dart :
   bandeau « Redémarrer ». Jamais de retour à une version plus ancienne. « Vérifier les mises à jour »
   (pied de page de l'app client, icône dans l'en-tête de la console technicien) le fait tout de suite.
   Chaque release de `main` est épinglée seule dans Concept_Assist par le workflow (étape « Pin in
-  Concept_Assist », secret `CONCEPT_ASSIST_TOKEN`) ; sans le secret, l'épinglage reste manuel.
+  Concept_Assist », secret `CONCEPT_ASSIST_TOKEN` : jeton fine-grained limité à Concept_Assist,
+  « Contents: Read and write ») ; sans le secret, l'épinglage reste manuel.
 - Données : API d'assistance (`/api/v1/device/*`), le PC s'identifie par son ID, son identifiant
   machine et son code de téléchargement.
 
