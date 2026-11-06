@@ -210,6 +210,18 @@ jobs:
           name: ci-remote-windows-x86_64-unsigned
           path: ./output
 
+      # Versions des apps (client, technicien) calculées depuis l'historique : publiées avec la release et
+      # épinglées avec elle dans Concept_Assist (clé « versions »), lues par le journal des mises à jour du site.
+      - name: Checkout (historique, sans contenu des fichiers)
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          fetch-depth: 0
+          filter: blob:none
+          path: src
+
+      - name: Versions des apps
+        run: python3 src/tools/versions/generate.py --build "build-${{ github.run_number }}" --out output/versions.json
+
       - name: Publish release
         uses: softprops/action-gh-release@de2c0eb89ae2a093876385947365aca7b0e5f844 # v1
         with:
@@ -224,6 +236,7 @@ jobs:
             ./output/ci-remote-x86_64.exe
             ./output/ci-tech-x86_64.exe
             ./output/SHA256SUMS
+            ./output/versions.json
 
       # Concept Informatique : épingle aussitôt cette version dans Concept_Assist (server/app-release.json).
       # Le serveur l'applique seul (minuteur 10 min) et les apps s'y mettent à jour. Sans le secret
@@ -257,7 +270,8 @@ jobs:
           if int(str(pinned.get("tag", "build-0")).split("-")[-1] or 0) >= int(tag.split("-")[-1]):
               print(f"Déjà épinglé : {pinned.get('tag')} (rien à faire pour {tag})")
               sys.exit(0)
-          new = {"repo": "IIROD/ci-remote", "tag": tag, "sha256": client, "tech_sha256": tech}
+          new = {"repo": "IIROD/ci-remote", "tag": tag, "sha256": client, "tech_sha256": tech,
+                 "versions": json.load(open("output/versions.json", encoding="utf-8"))}
           body = {"message": f"chore: épingle {tag} (automatique, release ci-remote)",
                   "content": base64.b64encode((json.dumps(new, indent=2) + "\n").encode()).decode(),
                   "sha": current["sha"], "branch": "main"}

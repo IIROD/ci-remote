@@ -1,0 +1,10 @@
+# PR écrites avant la règle des portées feat(client): / feat(tech): — classées une fois pour toutes.
+# sha court	type	résumé (vide = titre de la PR)	apps (client,tech ; vide = selon la portée, sinon les deux)
+ed0700e	feat	Réglages Concept Informatique intégrés à l'app (l'app technicien arrive avec #4)	client
+4f50563	feat	Code de téléchargement transmis avec la présence	client
+856b9a1	feat	Compteur de temps relié au crédit + « Mon suivi »	client,tech
+50d92cb	feat	Blocage et Privacy sans droits admin, fenêtre compacte cachée au technicien, accueil redimensionnable	client
+186c1de	fix	Fenêtre de connexion client vide (noire)	client
+b139f03	fix	Overlay client responsive, discussion compacte, minutes offertes en grand	client
+bbcd6d5	feat	« Vérifier les mises à jour » dans les apps	client,tech
+088b9c8	security	Failles connues corrigées dans les dépendances	client,tech
