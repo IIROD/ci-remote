@@ -1,12 +1,14 @@
 // Concept Informatique (app client) : la fenêtre de connexion RustDesk est remplacée par deux vues.
 //
 // - Demande de connexion : une carte au centre de l'écran (« Le technicien Jarod souhaiterait prendre
-//   le contrôle… »), Autoriser (avec élévation UAC quand Windows la propose) ou Refuser. Sans réponse,
-//   la demande est refusée au bout de 45 s.
+//   le contrôle… »), Accepter (avec élévation UAC quand Windows la propose) ou Refuser. Sans réponse,
+//   la demande est refusée au bout de 45 s. Accepter vaut accord aux Conditions de l'assistance (lien
+//   vers conditions-assistance.php du site).
 // - Pendant la session : un petit overlay en haut de l'écran (technicien, temps, coût seulement en
 //   dépassement) et « Demander la fin de l'accès ». Le client ne coupe pas d'un clic (fausse
 //   manœuvre) : le technicien est prévenu et l'app coupe d'elle-même 2 min plus tard, ou plus tôt si
-//   le technicien termine. Un message du technicien ouvre la discussion RustDesk sous l'overlay.
+//   le technicien termine. Le client choisit d'un clic pourquoi il arrête (END_REASONS de l'API, noté au
+//   journal). Un message du technicien ouvre la discussion RustDesk sous l'overlay.
 //
 // La fenêtre RustDesk d'origine reste montée, invisible (discussion, onglets). Toute la fenêtre est
 // exclue de la capture et ignore les clics envoyés par le technicien (src/ci_overlay.rs) : seul le
@@ -26,11 +28,21 @@ import 'package:flutter_hbb/models/server_model.dart';
 import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:window_manager/window_manager.dart';
 
 import '../../common.dart';
 
-const _kRequestSize = Size(500, 540);
+const _kRequestSize = Size(500, 640);
+const _kTermsUrl = 'https://www.conceptinformatique.be/conditions-assistance.php';
+// Raisons de « Demander la fin » : clés attendues par l'API (END_REASONS), libellés montrés au client.
+const _kEndReasons = {
+  'regle': 'C\'est réglé, merci',
+  'temps': 'Je n\'ai plus le temps maintenant',
+  'malaise': 'Je ne suis pas à l\'aise',
+  'magasin': 'Je préfère apporter l\'ordinateur au magasin',
+  'autre': 'Autre…',
+};
 const _kOverlayWidth = 340.0;
 const _kRequestTimeout = 45;
 const _kEndDelay = Duration(seconds: 120);
@@ -316,11 +328,29 @@ class _CiRequestCardState extends State<_CiRequestCard> {
                             border: Border.all(color: kCiLine),
                             borderRadius: BorderRadius.circular(10)),
                         child: const Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          _InfoLine(Icons.pan_tool_outlined,
+                              'Il utilise votre ordinateur comme il en a besoin, dans la limite de votre demande (installer un logiciel compris).'),
+                          SizedBox(height: 6),
+                          _InfoLine(Icons.visibility_off_outlined,
+                              'Il voit ce qui est à l\'écran, y compris des données personnelles : rien n\'est filmé ni enregistré. Fermez ce que vous ne voulez pas montrer.'),
+                          SizedBox(height: 6),
                           _InfoLine(Icons.timer_outlined,
                               'Vous verrez le temps et le coût en direct en haut de l\'écran.'),
                           SizedBox(height: 6),
-                          _InfoLine(Icons.close, 'Vous pouvez demander la fin de l\'accès à tout moment.'),
+                          _InfoLine(Icons.stop_circle_outlined,
+                              'Posez vos questions quand vous voulez. Vous pouvez demander la fin de l\'accès à tout moment.'),
                         ]),
+                      ),
+                    if (done && verified)
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: TextButton(
+                          onPressed: () => launchUrl(Uri.parse(_kTermsUrl)),
+                          style: TextButton.styleFrom(
+                              foregroundColor: kCiBrandDark, padding: const EdgeInsets.symmetric(vertical: 6)),
+                          child: const Text('Lire les Conditions de l\'assistance',
+                              style: TextStyle(fontSize: 13.5, decoration: TextDecoration.underline)),
+                        ),
                       ),
                   ]),
                 ),
@@ -350,7 +380,7 @@ class _CiRequestCardState extends State<_CiRequestCard> {
                         child: ElevatedButton.icon(
                           onPressed: () => _accept(model, elevate),
                           icon: Icon(elevate ? Icons.admin_panel_settings : Icons.check, size: 20),
-                          label: const Text('Autoriser',
+                          label: const Text('Accepter',
                               style: TextStyle(fontSize: 15.5, fontWeight: FontWeight.w700)),
                           style: ElevatedButton.styleFrom(
                               backgroundColor: verified ? const Color(0xFF03776C) : const Color(0xFF64748B),
@@ -366,6 +396,8 @@ class _CiRequestCardState extends State<_CiRequestCard> {
                 padding: const EdgeInsets.fromLTRB(26, 4, 26, 16),
                 child: Text(
                     [
+                      if (canAccept && verified)
+                        'En cliquant « Accepter », vous acceptez les Conditions de l\'assistance pour cet accès.',
                       if (elevate && canAccept)
                         'Windows vous demandera ensuite une confirmation : cliquez sur Oui.',
                       'Sans réponse, la demande expire dans ${ciClock(_left.clamp(0, _kRequestTimeout))}.',
@@ -446,6 +478,8 @@ class _CiSessionOverlay extends StatefulWidget {
 
 class _CiSessionOverlayState extends State<_CiSessionOverlay> with CiCounterPoller<_CiSessionOverlay> {
   bool _confirm = false;
+  bool _other = false;
+  final _otherText = TextEditingController();
   DateTime? _localDeadline;
   bool _cancelled = false;
   Timer? _guard;
@@ -466,6 +500,7 @@ class _CiSessionOverlayState extends State<_CiSessionOverlay> with CiCounterPoll
   @override
   void dispose() {
     _guard?.cancel();
+    _otherText.dispose();
     super.dispose();
   }
 
@@ -488,14 +523,20 @@ class _CiSessionOverlayState extends State<_CiSessionOverlay> with CiCounterPoll
     }
   }
 
-  Future<void> _requestEnd(bool cancel) async {
+  Future<void> _requestEnd(bool cancel, {String? reason}) async {
+    final detail = reason == 'autre' ? _otherText.text.trim() : '';
     setState(() {
       _confirm = false;
+      _other = false;
       _cancelled = cancel;
       _localDeadline = cancel ? null : DateTime.now().add(_kEndDelay);
     });
     try {
-      await CiDeviceApi.post('/api/v1/device/end', {'cancel': cancel});
+      await CiDeviceApi.post('/api/v1/device/end', {
+        'cancel': cancel,
+        if (reason != null) 'reason': reason,
+        if (detail.isNotEmpty) 'detail': detail,
+      });
     } catch (_) {}
     if (!mounted) return;
     if (cancel) _cancelled = false; // le serveur n'a plus de demande ; une nouvelle reste possible
@@ -550,20 +591,46 @@ class _CiSessionOverlayState extends State<_CiSessionOverlay> with CiCounterPoll
             ),
           ]));
     } else if (_confirm) {
+      // Choisir une raison envoie la demande ; « Autre » ouvre un champ facultatif.
       bottom = Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        Text('Demander à $tech de mettre fin à l\'accès ?',
-            style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600)),
-        const SizedBox(height: 4),
-        Text('Il termine ce qu\'il fait puis se déconnecte. Sans réponse, l\'accès se coupe seul au bout de 2 min.',
+        const Text('Pourquoi souhaitez-vous arrêter ?',
+            style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600)),
+        const SizedBox(height: 6),
+        if (!_other)
+          for (final r in _kEndReasons.entries) ...[
+            _button(r.value, const Color(0x0AFFFFFF), const Color(0xFF334155), const Color(0xFFE2E8F0),
+                () => r.key == 'autre' ? setState(() => _other = true) : _requestEnd(false, reason: r.key)),
+            const SizedBox(height: 5),
+          ]
+        else ...[
+          TextField(
+            controller: _otherText,
+            autofocus: true,
+            maxLength: 200,
+            maxLines: 2,
+            style: const TextStyle(color: Colors.white, fontSize: 12.5),
+            decoration: const InputDecoration(
+                isDense: true,
+                counterText: '',
+                hintText: 'Expliquez si vous le souhaitez (facultatif)',
+                hintStyle: TextStyle(color: _kDim, fontSize: 12.5),
+                filled: true,
+                fillColor: Color(0x0FFFFFFF),
+                border: OutlineInputBorder(borderSide: BorderSide(color: Color(0xFF334155)))),
+          ),
+          const SizedBox(height: 6),
+          _button('Demander la fin', const Color(0xFFDC2626), const Color(0xFFDC2626), Colors.white,
+              () => _requestEnd(false, reason: 'autre')),
+          const SizedBox(height: 5),
+        ],
+        _button('Non, continuer', Colors.transparent, const Color(0xFF334155), Colors.white,
+            () => setState(() {
+                  _confirm = false;
+                  _other = false;
+                })),
+        const SizedBox(height: 6),
+        Text('$tech termine ce qu\'il fait puis se déconnecte. Sans réponse, l\'accès se coupe seul au bout de 2 min.',
             style: const TextStyle(color: _kSoft, fontSize: 11.5, height: 1.35)),
-        const SizedBox(height: 8),
-        Row(children: [
-          Expanded(child: _button('Non, continuer', Colors.transparent, const Color(0xFF334155), Colors.white,
-              () => setState(() => _confirm = false))),
-          const SizedBox(width: 8),
-          Expanded(child: _button('Oui, demander', const Color(0xFFDC2626), const Color(0xFFDC2626), Colors.white,
-              () => _requestEnd(false))),
-        ]),
       ]);
     } else {
       bottom = _button('Demander la fin de l\'accès', const Color(0x24DC2626), const Color(0x80F87171),
