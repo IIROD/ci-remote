@@ -73,6 +73,13 @@ Une seule base, deux versions fixées à la compilation par une constante Dart :
   Chaque release de `main` est épinglée seule dans Concept_Assist par le workflow (étape « Pin in
   Concept_Assist », secret `CONCEPT_ASSIST_TOKEN` : jeton fine-grained limité à Concept_Assist,
   « Contents: Read and write ») ; sans le secret, l'épinglage reste manuel.
+- **Versions** (`tools/versions/generate.py`) : app client et app technicien ont chacune leur version, calculée
+  depuis l'historique comme le site et le serveur (nouveauté → 2e chiffre, correction → 3e, majeur → 1er sur
+  décision ; « build-N » reste le numéro de compilation). L'app concernée se lit dans la portée du titre de la PR :
+  `feat(client):`, `feat(tech):`, sans portée → les deux ; `fix(securite):` ou `build(securite):` → « Sécurité ».
+  La release publie `versions.json` et l'épinglage l'ajoute à `server/app-release.json` (clé `versions`) : le
+  journal des mises à jour du site montre la version réellement distribuée. Pour revenir à un build plus
+  ancien à la main, recopier aussi le `versions.json` de sa release dans la clé `versions`.
 - Données : API d'assistance (`/api/v1/device/*`), le PC s'identifie par son ID, son identifiant
   machine et son code de téléchargement.
 
